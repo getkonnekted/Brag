@@ -8,7 +8,13 @@ const BLOCKED = /(delete|remove|cancel|logout|log out|pay|purchase|buy|subscribe
 
 function clean(v) { return (v || "").replace(/\s+/g, " ").trim().slice(0, 140); }
 
-async function waitForStability(page) {\n  await page.waitForLoadState("domcontentloaded", { timeout: 12000 }).catch(() => {});\n  await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(() => {});\n  await page.waitForTimeout(350);\n}\n\nfunction isSafeHref(href, origin) {
+async function waitForStability(page) {
+  await page.waitForLoadState("domcontentloaded", { timeout: 12000 }).catch(() => {});
+  await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(() => {});
+  await page.waitForTimeout(350);
+}
+
+function isSafeHref(href, origin) {
   if (!href) return false;
   try {
     const u = new URL(href, origin);
@@ -76,7 +82,9 @@ async function runWorkflow(url, options = {}) {
   const visited = new Set();
 
   page.on("console", m => { if (m.type() === "error") errors.push(m.text()); });
-  page.on("pageerror", e => errors.push(e.message));\n  page.on("requestfailed", r => requestFailures.push({ url: r.url(), failure: r.failure()?.errorText || "request failed" }));\n  page.on("crash", () => { pageCrashed = true; errors.push("Page crashed during capture."); });
+  page.on("pageerror", e => errors.push(e.message));
+  page.on("requestfailed", r => requestFailures.push({ url: r.url(), failure: r.failure()?.errorText || "request failed" }));
+  page.on("crash", () => { pageCrashed = true; errors.push("Page crashed during capture."); });
 
   try {
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
@@ -130,18 +138,42 @@ async function runWorkflow(url, options = {}) {
         screenshot
       });
 
-      if (target.tag === "a") {
-        if (!isSafeHref(target.href, origin)) {
-          steps.push({ step, type: "blocked", reason: "Destination is outside approved origin or unsafe." });
+      let actionSucceeded = false;
+      let actionError = null;
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          if (target.tag === "a" && !isSafeHref(target.href, origin)) {
+            throw new Error("Destination is outside approved origin or unsafe.");
+          }
+          await locator.click({ timeout: 8000 });
+          actionSucceeded = true;
           break;
+        } catch (error) {
+          actionError = error;
+          steps.push({
+            step,
+            type: "action-retry",
+            attempt,
+            timestamp: new Date().toISOString(),
+            action: { text: target.text, tag: target.tag },
+            reason: clean(error.message)
+          });
+          await waitForStability(page);
         }
-        await locator.click({ timeout: 8000 });
-      } else {
-        await locator.click({ timeout: 8000 });
       }
 
-      await page.waitForLoadState("domcontentloaded", { timeout: 12000 }).catch(() => {});
-      await page.waitForTimeout(1000);
+      if (!actionSucceeded) {
+        steps.push({
+          step,
+          type: "action-failed",
+          timestamp: new Date().toISOString(),
+          action: { text: target.text, tag: target.tag },
+          reason: clean(actionError?.message || "Action failed")
+        });
+        continue;
+      }
+
+      await waitForStability(page);
 
       const afterUrl = page.url();
       if (!afterUrl.startsWith(origin)) {
@@ -154,12 +186,41 @@ async function runWorkflow(url, options = {}) {
       const headings = await page.locator("h1,h2,h3").allTextContents();
 
       const cursor = { x: target.x + target.width / 2, y: target.y + target.height / 2 };
-      steps.push({
+      const state = {
         step, type: "state-captured", timestamp: new Date().toISOString(), url: afterUrl, urlChanged: beforeUrl !== afterUrl,
         shot: shot ? { id: shot.id, type: shot.type, goal: shot.goal } : null,
         title: await page.title(), headings: headings.map(clean).filter(Boolean).slice(0,8),
         screenshot: afterScreenshot, cursor, elapsedMs: Date.now() - actionStartedAt
-      });
+      };
+      state.evaluation = evaluateCapturedState(state, intelligence);
+      steps.push(state);
+
+      if (state.evaluation?.decision === "hold-result") {
+        steps.push({ step, type: "director-hold", reason: state.evaluation.reason });
+        break;
+      }
+
+      if (state.evaluation?.decision === "replan") {
+        const freshActions = await visibleActions(page);
+        const alternatives = freshActions
+          .map(a => ({ ...a, score: directorScore(a, intelligence) }))
+          .filter(a => a.score > 0)
+          .sort((a,b) => b.score - a.score || a.y - b.y);
+        const alternative = alternatives.find(a => !visited.has(`${page.url()}|${a.text}|${a.href || ""}`));
+        if (alternative) {
+          steps.push({
+            step,
+            type: "replan",
+            timestamp: new Date().toISOString(),
+            from: target.text,
+            to: alternative.text,
+            reason: state.evaluation.reason
+          });
+        } else {
+          steps.push({ step, type: "replan-stop", reason: "No alternate safe action available." });
+          break;
+        }
+      }
     }
 
     const manifest = {
@@ -170,7 +231,10 @@ async function runWorkflow(url, options = {}) {
       director: intelligence,
       shotPlan,
       steps,
-      elapsedMs: Date.now() - startedAt,\n      consoleErrors: errors,\n      requestFailures,\n      captureHealth: { pageCrashed, requestFailureCount: requestFailures.length, actionFailures: steps.filter(s => s.type === "action-failed").length, recordingValid: false },
+      elapsedMs: Date.now() - startedAt,
+      consoleErrors: errors,
+      requestFailures,
+      captureHealth: { pageCrashed, requestFailureCount: requestFailures.length, actionFailures: steps.filter(s => s.type === "action-failed").length, recordingValid: false },
       policy: { sameOriginOnly: true, directorGuided: true, safeActionAllowlist: SAFE.source, blockedActionPattern: BLOCKED.source, maxSteps }
     };
     const recordedVideo = page.video();
