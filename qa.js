@@ -70,7 +70,9 @@ if (states.length === 0) add("workflow", "fail", "No captured workflow states we
 else if (states.length === 1) add("workflow", "warning", "Only one workflow state was captured.");
 else add("workflow", "pass", "Workflow captured multiple product states.", `${states.length} states detected.`);
 
-const captureHealth = manifest?.captureHealth || null;\nif (captureHealth) {\n  if (captureHealth.pageCrashed) add("capture-health", "fail", "Browser page crashed during capture.");\n  else if (captureHealth.actionFailures) add("capture-health", "warning", "One or more browser actions required recovery.", `${captureHealth.actionFailures} action failure(s).`);\n  else add("capture-health", "pass", "Capture health checks completed.");\n  if (captureHealth.recordingValid === false) add("recording-health", "fail", "Browser recording was not validated.");\n}\n\nconst errors = manifest?.consoleErrors || [];
+const captureHealth = manifest?.captureHealth || null;
+if (captureHealth) {\n  if (captureHealth.pageCrashed) add("capture-health", "fail", "Browser page crashed during capture.");\n  else if (captureHealth.actionFailures) add("capture-health", "warning", "One or more browser actions required recovery.", `${captureHealth.actionFailures} action failure(s).`);\n  else add("capture-health", "pass", "Capture health checks completed.");\n  if (captureHealth.recordingValid === false) add("recording-health", "fail", "Browser recording was not validated.");
+}\n\nconst errors = manifest?.consoleErrors || [];
 if (errors.length) add("console-errors", "warning", "Browser console errors were captured.", `${errors.length} error(s) recorded.`);
 else add("console-errors", "pass", "No browser console errors were recorded.");
 
