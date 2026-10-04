@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BRAG | Turn products into demos</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="shell">
+<header class="topbar"><div class="brand"><span class="mark">B</span><span>BRAG</span></div><span class="tag">PRODUCT → STORY → VIDEO</span></header>
+<main>
+<section class="hero"><p class="eyebrow">PRODUCT DEMO ENGINE</p><h1>Turn what you built into a demo people understand.</h1><p class="sub">Give BRAG a product URL, screenshots, or product notes. It builds the story, animates the presentation, and records a shareable demo.</p></section>
+<section class="grid">
+<div class="panel input-panel">
+<div class="panel-head"><h2>1. Give BRAG the product</h2><span class="pill">FREE MVP</span></div>
+<label>Product URL <input id="url" type="url" placeholder="https://yourproduct.com" /></label>
+<label>What does it do? <textarea id="description" rows="5" placeholder="Describe the product, the problem it solves, and who it is for."></textarea></label>
+<label class="upload">Screenshots <input id="images" type="file" accept="image/*" multiple /><span>Drop screenshots here or tap to choose</span></label>
+<button id="generate" class="primary">Build my demo story</button>
+<p class="hint">No AI API required for this MVP. The director uses local heuristics and your supplied product information.</p>
+</div>
+<div class="panel story-panel">
+<div class="panel-head"><h2>2. BRAG Director</h2><span id="status" class="status">Waiting</span></div>
+<div id="story" class="story-empty">Your demo storyboard will appear here.</div>
+</div>
+</section>
+<section class="panel studio">
+<div class="panel-head"><h2>3. Demo Studio</h2><div class="studio-actions"><button id="play" disabled>Preview</button><button id="record" class="primary" disabled>Record demo</button></div></div>
+<div class="stage-wrap"><canvas id="canvas" width="1280" height="720"></canvas></div>
+<div id="recording" class="recording"></div>
+</section>
+<section class="architecture"><div><p class="eyebrow">THE IDEA</p><h2>AI should be the director, not the camera.</h2></div><p>BRAG can evolve from a zero-cost browser renderer into URL inspection, GitHub repo analysis, Playwright capture, Remotion composition, local LLM direction, and open-source voice generation.</p></section>
+</main>
+<footer>BRAG MVP · Open-source architecture · Built for real product demos</footer>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
