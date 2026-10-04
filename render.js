@@ -23,6 +23,11 @@ if (!fs.existsSync(manifestPath)) {
   process.exit(1);
 }
 
+const audioManifestPath = path.join(path.dirname(packagePath), "audio", "manifest.json");
+const audioManifest = fs.existsSync(audioManifestPath)
+  ? JSON.parse(fs.readFileSync(audioManifestPath, "utf8"))
+  : null;
+
 const outDir = path.join(root, "render");
 const workDir = path.join(outDir, ".scenes");
 fs.mkdirSync(workDir, { recursive: true });
@@ -105,16 +110,45 @@ function buildScene(scene, index, formatKey, size) {
   return { output, duration };
 }
 
-function concatClips(clips, formatKey, size) {
+function buildAudio() {
+  if (!audioManifest || !audioManifest.scenes?.length) return null;
+
+  const audioScenes = audioManifest.scenes.filter(s => s.audio);
+  if (!audioScenes.length) return null;
+
+  const inputs = [];
+  const filters = [];
+  audioScenes.forEach((scene, i) => {
+    const file = path.join(path.dirname(packagePath), "audio", scene.audio);
+    if (!fs.existsSync(file)) return;
+    inputs.push("-i", file);
+    const duration = Number(scene.targetDuration) || 5;
+    filters.push("[" + i + ":a]apad,atrim=duration=" + duration.toFixed(3) + ",asetpts=N/SR/TB[a" + i + "]");
+  });
+
+  if (!inputs.length) return null;
+
+  let last = "[a0]";
+  for (let i = 1; i < inputs.length / 2; i++) {
+    const out = "[af" + i + "]";
+    filters.push(last + "[a" + i + "]acrossfade=d=0.35:c1=tri:c2=tri" + out);
+    last = out;
+  }
+
+  const output = path.join(workDir, "narration.wav");
+  execFileSync("ffmpeg", [
+    "-y", ...inputs,
+    "-filter_complex", filters.join(";"),
+    "-map", last, "-c:a", "pcm_s16le", output
+  ], { stdio: "inherit" });
+
+  return output;
+}
+
+function concatClips(clips, formatKey, size, narration) {
   if (!clips.length) throw new Error("No renderable scenes were found.");
   const inputs = [];
   clips.forEach(c => inputs.push("-i", c.output));
-
-  if (clips.length === 1) {
-    const finalPath = path.join(outDir, "brag-demo-" + formatKey + ".mp4");
-    fs.copyFileSync(clips[0].output, finalPath);
-    return finalPath;
-  }
 
   const parts = [];
   let last = "[0:v]";
@@ -130,13 +164,19 @@ function concatClips(clips, formatKey, size) {
   }
 
   const finalPath = path.join(outDir, "brag-demo-" + formatKey + ".mp4");
-  execFileSync("ffmpeg", [
+  const args = [
     "-y", ...inputs,
+    ...(narration ? ["-i", narration] : []),
     "-filter_complex", parts.join(";"),
-    "-map", last, "-r", "30", "-s", size.width + "x" + size.height,
-    "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-movflags", "+faststart", finalPath
-  ], { stdio: "inherit" });
+    "-map", last,
+    ...(narration ? ["-map", String(clips.length) + ":a", "-shortest"] : []),
+    "-r", "30", "-s", size.width + "x" + size.height,
+    "-c:v", "libx264",
+    ...(narration ? ["-c:a", "aac", "-b:a", "160k"] : ["-an"]),
+    "-pix_fmt", "yuv420p", "-movflags", "+faststart", finalPath
+  ];
 
+  execFileSync("ffmpeg", args, { stdio: "inherit" });
   return finalPath;
 }
 
@@ -147,10 +187,13 @@ if (!fs.existsSync(planPath)) {
 const plan = JSON.parse(fs.readFileSync(planPath, "utf8"));
 const scenes = plan.scenes || pkg.scenes || [];
 
+const narration = buildAudio();
+if (narration) console.log("Narration audio:", narration);
+
 for (const [formatKey, size] of Object.entries(formats)) {
   console.log("\\nRendering " + formatKey + " " + size.width + "x" + size.height + "...");
   const clips = scenes.map((scene, index) => buildScene(scene, index + 1, formatKey, size)).filter(Boolean);
-  const finalPath = concatClips(clips, formatKey, size);
+  const finalPath = concatClips(clips, formatKey, size, narration);
   console.log("Rendered:", finalPath);
 }
 
