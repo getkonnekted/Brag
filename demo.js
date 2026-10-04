@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
-const { runWorkflow } = require("./runner");\nconst { buildNarrative } = require("./director");\nconst { applyInteractionToScenes } = require("./cinematography");
+const { runWorkflow } = require("./runner");
+const { buildNarrative } = require("./director");\nconst { applyInteractionToScenes } = require("./cinematography");
 
 function clean(v) { return (v || "").replace(/\s+/g, " ").trim(); }
 
@@ -10,7 +11,8 @@ function productName(url, title) {
   catch { return "your product"; }
 }
 
-function buildDemoPackage(manifest, description = "") {\n  const observedStates = manifest.steps.filter(s => s.type === "state-captured");\n  const narrative = buildNarrative(manifest.director || {}, observedStates);
+function buildDemoPackage(manifest, description = "") {
+  const observedStates = manifest.steps.filter(s => s.type === "state-captured");\n  const narrative = buildNarrative(manifest.director || {}, observedStates);
   const name = productName(manifest.source, manifest.steps.find(s => s.title)?.title);
   const states = manifest.steps.filter(s => s.type === "state-captured");
   const first = states[0];
