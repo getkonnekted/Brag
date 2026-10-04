@@ -55,6 +55,7 @@ async function runWorkflow(url, options = {}) {
   const origin = new URL(url).origin;
   const errors = [];
   const steps = [];
+  let lastActionPoint = null;
   const visited = new Set();
 
   page.on("console", m => { if (m.type() === "error") errors.push(m.text()); });
