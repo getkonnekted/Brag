@@ -14,6 +14,18 @@ BRAG uses the real product as footage. It inspects a product, discovers a bounde
 
 `build → inspect → discover workflow → capture real footage → direct edit → narrate → render → QA → post`
 
+## v1.5
+
+The Director can now evaluate captured states during the browser run.
+
+After each meaningful state, BRAG classifies the result as:
+
+- `hold-result`: strong proof was found, so the run can stop and preserve the result
+- `continue`: the state is meaningful but more evidence is needed
+- `replan`: the state contains too little visible evidence
+
+This makes capture adaptive rather than purely step-count driven.
+
 ## v1.4
 
 BRAG now creates a Director Shot Plan before browser capture.
