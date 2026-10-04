@@ -62,11 +62,11 @@ export default function Home() {
     }
   }
 
-  async function capture() {
+  async function produce() {
     setStage("capturing");
     setError("");
     try {
-      await engineRequest("/api/record", { url, maxSteps: 4 });
+      await engineRequest("/api/produce", { url, maxSteps: 4, description });
       setStage("ready");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Capture failed.");
@@ -137,7 +137,7 @@ export default function Home() {
       <section className="studio">
         <div className="studio-head">
           <div><div className="kicker">03 · DEMO STUDIO</div><h2>Real footage. Directed edit.</h2></div>
-          <div className="actions"><button onClick={capture} disabled={stage !== "ready"}>{stage === "capturing" ? "Capturing..." : "Capture real product"}</button><button className="primary" disabled={stage !== "ready"}>Render demo</button></div>
+          <div className="actions"><button onClick={capture} disabled={stage !== "ready"}>{stage === "capturing" ? "Capturing..." : "Capture real product"}</button><button className="primary" onClick={produce} disabled={stage !== "ready"}>{stage === "capturing" ? "Producing..." : "Render demo"}</button></div>
         </div>
         <div className="stage">
           <div className="stage-top"><span>BRAG / {productName.toUpperCase()}</span><span>1280 × 720</span></div>
