@@ -160,4 +160,32 @@ if (require.main === module) {
   console.log(JSON.stringify(storyboard, null, 2));
 }
 
-module.exports = { buildStoryboard, buildIntelligence, buildShotPlan, evaluateCapturedState };
+
+
+function buildNarrative(intelligence, states) {
+  const observed = (states || []).filter(Boolean).map((state, index) => ({
+    step: index + 1,
+    title: clean(state.title),
+    headings: (state.headings || []).map(clean).filter(Boolean).slice(0, 3),
+    evaluation: state.evaluation || null
+  }));
+  const proofState = observed.find(s => s.evaluation?.proof) || observed[observed.length - 1] || null;
+  const action = intelligence.strongestAction || "the primary action";
+  const outcome = proofState
+    ? (proofState.headings.length ? proofState.headings.join(" and ") : proofState.title)
+    : intelligence.proof;
+  return {
+    version: "1.9",
+    structure: ["problem", "action", "change", "outcome"],
+    evidence: observed,
+    scenes: [
+      { id: "problem", text: intelligence.promise },
+      { id: "action", text: "The workflow starts with " + action + "." },
+      { id: "change", text: intelligence.workflow[1] || "The product processes the user's task." },
+      { id: "outcome", text: outcome || intelligence.proof }
+    ],
+    rule: "Narration is derived only from observed product evidence and director intelligence."
+  };
+}
+
+module.exports = { buildStoryboard, buildIntelligence, buildShotPlan, evaluateCapturedState, buildNarrative };
