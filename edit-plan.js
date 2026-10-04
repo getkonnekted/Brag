@@ -11,7 +11,7 @@ const pkg = JSON.parse(fs.readFileSync(input, "utf8"));
 const out = path.join(path.dirname(input), "edit-plan.json");
 
 const plan = {
-  version: "0.7",
+  version: "1.7",
   product: pkg.product,
   source: pkg.source,
   canvas: { width: 1280, height: 720, fps: 30 },
