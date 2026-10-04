@@ -1,6 +1,6 @@
 {
   "name": "brag",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "description": "BRAG product-to-video demo engine",
   "scripts": {
@@ -9,7 +9,8 @@
     "workflow": "node workflow.js",
     "run": "node runner.js",
     "demo": "node demo.js",
-    "render": "node render.js"
+    "render": "node render.js",
+    "edit-plan": "node edit-plan.js"
   },
   "dependencies": {
     "playwright": "^1.55.0"
