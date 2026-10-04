@@ -1,7 +1,7 @@
 const { chromium } = require("playwright");
 const fs = require("fs");
 const path = require("path");
-const { buildIntelligence, buildShotPlan } = require("./director");
+const { buildIntelligence, buildShotPlan, evaluateCapturedState } = require("./director");
 
 const SAFE = /^(start|get started|try|try it|demo|explore|learn more|discover|play|begin|launch|view demo|see demo|continue|next|open|view|details|dashboard|features|how it works)$/i;
 const BLOCKED = /(delete|remove|cancel|logout|log out|pay|purchase|buy|subscribe|checkout|transfer|withdraw|send money|confirm payment|publish|post|deploy|password|reset password|verify|sign in|signin|login|log in|upload|download)/i;
