@@ -24,14 +24,14 @@ function buildDemoPackage(manifest, description = "") {
       narration: description
         ? clean(description).slice(0, 220)
         : `${name} is built to solve a specific problem without adding unnecessary complexity.`,
-      purpose: "Establish the problem and promise."
+      purpose: "Establish the problem and promise.",\n      motion: { type: "slow-zoom", from: 1, to: 1.06 }
     },
     {
       id: "product",
       duration: 5,
       footage: first?.screenshot || manifest.steps[0]?.screenshot || null,
       narration: `Meet ${name}. This is the product in its real environment, not a mockup.`,
-      purpose: "Orient the viewer inside the actual product."
+      purpose: "Orient the viewer inside the actual product.",\n      motion: { type: "push-right", from: 1, to: 1.04 }
     }
   ];
 
@@ -43,7 +43,7 @@ function buildDemoPackage(manifest, description = "") {
       narration: state.headings?.length
         ? `From here, the important path is ${state.headings.slice(0, 2).join(" and ")}.`
         : "This is the important step in the user workflow.",
-      purpose: "Show the real product doing the work."
+      purpose: "Show the real product doing the work.",\n      cursor: state.cursor || null,\n      motion: { type: i % 2 ? "slow-zoom" : "push-left", from: 1, to: 1.05 }
     });
   });
 
@@ -52,7 +52,7 @@ function buildDemoPackage(manifest, description = "") {
     duration: 6,
     footage: last?.screenshot || first?.screenshot || null,
     narration: "The point is the outcome: the user gets from the starting problem to a useful result.",
-    purpose: "Make the value visible."
+    purpose: "Make the value visible.",\n    motion: { type: "slow-zoom", from: 1.02, to: 1.07 }
   });
 
   scenes.push({
@@ -60,7 +60,7 @@ function buildDemoPackage(manifest, description = "") {
     duration: 4,
     footage: last?.screenshot || null,
     narration: `That's ${name}. Show the product, show the workflow, then let the result speak for itself.`,
-    purpose: "Close with a product-first call to action."
+    purpose: "Close with a product-first call to action.",\n    motion: { type: "push-right", from: 1.03, to: 1.08 }
   });
 
   return {
@@ -71,7 +71,7 @@ function buildDemoPackage(manifest, description = "") {
     totalDuration: scenes.reduce((sum, s) => sum + s.duration, 0),
     scenes,
     footageDirectory: "output/recording",
-    next: "Feed this edit decision list into the renderer and TTS layer."
+    next: "Feed this edit decision list into the renderer and TTS layer.",\n    formats: ["16:9", "9:16", "1:1"],\n    visualLanguage: { cursor: "highlight-click-target", captions: "bottom-safe", transitions: "short-crossfade" }
   };
 }
 
