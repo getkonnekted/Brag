@@ -12,7 +12,8 @@ function productName(url, title) {
 }
 
 function buildDemoPackage(manifest, description = "") {
-  const observedStates = manifest.steps.filter(s => s.type === "state-captured");\n  const narrative = buildNarrative(manifest.director || {}, observedStates);
+  const observedStates = manifest.steps.filter(s => s.type === "state-captured");
+  const narrative = buildNarrative(manifest.director || {}, observedStates);
   const name = productName(manifest.source, manifest.steps.find(s => s.title)?.title);
   const states = manifest.steps.filter(s => s.type === "state-captured");
   const first = states[0];
@@ -82,7 +83,8 @@ function buildDemoPackage(manifest, description = "") {
     totalDuration: scenes.reduce((sum, s) => sum + s.duration, 0),
     scenes,
     realFootage: manifest.realFootage || null,
-    shotPlan: manifest.shotPlan || null,\n    narrative,
+    shotPlan: manifest.shotPlan || null,
+    narrative,
     footageDirectory: "output/recording",
     next: "Feed this edit decision list into the renderer and TTS layer.",
     formats: ["16:9", "9:16", "1:1"],
