@@ -30,6 +30,8 @@ function applyOverride(scene, index) {
   return next;
 }
 
+const out = path.join(path.dirname(input), "edit-plan.json");
+
 const scenes = pkg.scenes
   .map(applyOverride)
   .filter(Boolean);
