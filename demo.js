@@ -1,7 +1,8 @@
 const fs = require("fs");
 const path = require("path");
 const { runWorkflow } = require("./runner");
-const { buildNarrative } = require("./director");\nconst { applyInteractionToScenes } = require("./cinematography");
+const { buildNarrative } = require("./director");
+const { applyInteractionToScenes } = require("./cinematography");
 
 function clean(v) { return (v || "").replace(/\s+/g, " ").trim(); }
 
