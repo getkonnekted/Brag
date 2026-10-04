@@ -1,24 +1,43 @@
 # BRAG
 
-Product-to-video demo engine MVP.
+Product-to-video demo engine.
+
+## v0.2
+
+BRAG now has a real product inspection layer using Playwright. Give it a live URL and it can inspect the page, collect product signals, detect console errors, and produce a deterministic demo storyboard.
+
+### Run locally
+
+```bash
+npm install
+npx playwright install chromium
+npm start
+```
+
+Then use the browser at `http://localhost:4173`.
+
+For CLI capture:
+
+```bash
+npm run capture -- https://example.com
+node director.js
+```
+
+Output is written to `output/`.
 
 ## MVP
 
-BRAG accepts a product URL, product notes, and screenshots. It generates a demo storyboard and renders a browser-native animated product presentation to WebM using Canvas + MediaRecorder. No paid AI API is required.
+- Product URL
+- Product notes
+- Screenshot upload
+- Storyboard generation
+- Browser-based demo preview
+- WebM recording
+- Playwright URL inspection
+- Deterministic director
 
-## Direction
+## Roadmap
 
-AI should be the director, not the camera.
+`URL / GitHub repo → inspect → discover workflow → operate real app → capture footage → narration → final demo`
 
-Next stages:
-1. URL inspection with Playwright
-2. GitHub repo analysis
-3. Automated workflow capture
-4. Remotion composition
-5. Local LLM storyboard director
-6. Local/open TTS with Kokoro or Piper
-7. FFmpeg final rendering
-
-## Run
-
-Serve this folder with any static server, for example `python3 -m http.server 4173`.
+**Core rule: AI should be the director, not the camera.**
