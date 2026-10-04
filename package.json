@@ -4,7 +4,7 @@
   "private": true,
   "description": "BRAG product-to-video demo engine",
   "scripts": {
-    "start": "node server.js",
+    "start": "next start",
     "capture": "node capture.js",
     "workflow": "node workflow.js",
     "run": "node runner.js",
@@ -15,9 +15,14 @@
     "qa": "node qa.js",
     "director": "node director.js",
     "brag": "node brag.js",
-    "check": "node brag.js --check"
+    "check": "node brag.js --check",
+    "dev": "next dev",
+    "build": "next build"
   },
   "dependencies": {
-    "playwright": "^1.55.0"
+    "playwright": "^1.55.0",
+    "next": "^16.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   }
 }
