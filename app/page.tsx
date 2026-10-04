@@ -62,6 +62,18 @@ export default function Home() {
     }
   }
 
+  async function capture() {
+    setStage("capturing");
+    setError("");
+    try {
+      await engineRequest("/api/record", { url, maxSteps: 4 });
+      setStage("ready");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Capture failed.");
+      setStage("error");
+    }
+  }
+
   async function produce() {
     setStage("capturing");
     setError("");
