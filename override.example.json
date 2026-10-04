@@ -1,0 +1,17 @@
+{
+  "global": {
+    "captions": true
+  },
+  "scenes": {
+    "hook": {
+      "duration": 3.5,
+      "narration": "A shorter opening that gets straight to the problem."
+    },
+    "workflow-2": {
+      "skip": true
+    },
+    "result": {
+      "duration": 7
+    }
+  }
+}
