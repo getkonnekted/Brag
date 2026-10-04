@@ -14,6 +14,28 @@ BRAG uses the real product as footage. It inspects a product, discovers a bounde
 
 `build → inspect → discover workflow → capture real footage → direct edit → narrate → render → QA → post`
 
+## v1.4
+
+BRAG now creates a Director Shot Plan before browser capture.
+
+The plan defines the intended visual beats:
+
+- establish the real product
+- capture the primary action
+- capture the core interaction
+- capture the proof/result
+- hold the useful outcome
+- close on the clearest action
+
+The runner records the shot goal alongside each captured interaction. Shot planning is advisory and cannot bypass the browser safety policy.
+
+This separates two decisions:
+
+```text
+Director: What moment is worth showing?
+Camera:   How can I safely capture it?
+```
+
 ## v1.3
 
 BRAG now preserves the real browser recording produced by Playwright.
