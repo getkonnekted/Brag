@@ -80,6 +80,7 @@ function buildDemoPackage(manifest, description = "") {
     totalDuration: scenes.reduce((sum, s) => sum + s.duration, 0),
     scenes,
     realFootage: manifest.realFootage || null,
+    shotPlan: manifest.shotPlan || null,
     footageDirectory: "output/recording",
     next: "Feed this edit decision list into the renderer and TTS layer.",
     formats: ["16:9", "9:16", "1:1"],
