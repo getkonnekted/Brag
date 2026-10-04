@@ -98,6 +98,29 @@ function buildShotPlan(intelligence) {
   };
 }
 
+function evaluateCapturedState(state, intelligence) {
+  const headings = (state.headings || []).join(" ");
+  const title = clean(state.title);
+  const text = (headings + " " + title).toLowerCase();
+  const proofTerms = intelligence.archetype === "ai-workflow"
+    ? /result|output|generated|response|answer|complete|done/
+    : intelligence.archetype === "data-workflow"
+      ? /dashboard|analytics|report|metric|insight|score|result/
+      : intelligence.archetype === "game"
+        ? /score|level|win|result|progress|complete/
+        : intelligence.archetype === "commerce"
+          ? /product|price|offer|cart|order|details/
+          : /result|success|complete|done|dashboard|output|created|ready/;
+  const proof = proofTerms.test(text);
+  const useful = Boolean(title || headings);
+  return {
+    useful,
+    proof,
+    decision: proof ? "hold-result" : useful ? "continue" : "replan",
+    reason: proof ? "Captured state contains evidence of the intended outcome." : useful ? "Captured state is meaningful but does not yet show strong proof." : "Captured state contains too little visible evidence."
+  };
+}
+
 function buildStoryboard(inspection) {
   const intelligence = buildIntelligence(inspection);
   const scenes = [
@@ -137,4 +160,4 @@ if (require.main === module) {
   console.log(JSON.stringify(storyboard, null, 2));
 }
 
-module.exports = { buildStoryboard, buildIntelligence, buildShotPlan };
+module.exports = { buildStoryboard, buildIntelligence, buildShotPlan, evaluateCapturedState };
