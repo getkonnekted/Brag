@@ -244,6 +244,7 @@ async function runWorkflow(url, options = {}) {
         const videoPath = await recordedVideo.path();
         const target = path.join(outputDir, "real-product-footage.webm");
         fs.copyFileSync(videoPath, target);
+        manifest.captureHealth.recordingValid = fs.existsSync(target) && fs.statSync(target).size > 0;
         manifest.realFootage = {
           file: "real-product-footage.webm",
           format: "webm",
