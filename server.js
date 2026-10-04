@@ -1,6 +1,7 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+const { spawn } = require("child_process");
 const { chromium } = require("playwright");
 const { buildStoryboard } = require("./director");
 const { runWorkflow } = require("./runner");
@@ -43,6 +44,43 @@ const server = http.createServer(async (req,res) => {\n  if (req.method === "OPT
           res.end(JSON.stringify(result));
         } catch (e) {
           res.writeHead(400, {"Content-Type":"application/json"});
+          res.end(JSON.stringify({ error:e.message }));
+        }
+      });
+      return;
+    }
+
+    if (req.method === "POST" && req.url === "/api/produce") {
+      let body = ""; req.on("data", c => body += c);
+      req.on("end", () => {
+        try {
+          const { url, maxSteps, description } = JSON.parse(body || "{}");
+          if (!url || !/^https?:\\/\\//i.test(url)) throw new Error("A valid http(s) URL is required.");
+          const args = ["brag.js", url, String(maxSteps || 4)];
+          if (description) args.push(String(description));
+          const child = spawn(process.execPath, args, { cwd: root, env: process.env });
+          let stdout = "", stderr = "";
+          child.stdout.on("data", d => stdout += d.toString());
+          child.stderr.on("data", d => stderr += d.toString());
+          child.on("close", code => {
+            const qaPath = path.join(root, "output", "qa", "report.json");
+            const qa = fs.existsSync(qaPath) ? JSON.parse(fs.readFileSync(qaPath, "utf8")) : null;
+            const result = {
+              ok: code === 0,
+              exitCode: code,
+              qa,
+              final: [
+                "output/final/product-demo-16x9.mp4",
+                "output/final/product-demo-9x16.mp4",
+                "output/final/product-demo-1x1.mp4"
+              ].filter(file => fs.existsSync(path.join(root, file))),
+              log: (stdout + "\\n" + stderr).slice(-12000)
+            };
+            res.writeHead(code === 0 ? 200 : 500, {"Content-Type":"application/json","Access-Control-Allow-Origin":"*"});
+            res.end(JSON.stringify(result));
+          });
+        } catch (e) {
+          res.writeHead(400, {"Content-Type":"application/json","Access-Control-Allow-Origin":"*"});
           res.end(JSON.stringify({ error:e.message }));
         }
       });
