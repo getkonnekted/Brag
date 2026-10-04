@@ -3,24 +3,48 @@ const path = require("path");
 
 const input = process.argv[2] || "output/demo/package.json";
 if (!fs.existsSync(input)) {
-  console.error("Demo package not found. Run npm run demo -- <url> first.");
+  console.error("Demo package not found. Run: npm run demo -- <url> first.");
   process.exit(1);
 }
 
 const pkg = JSON.parse(fs.readFileSync(input, "utf8"));
-const out = path.join(path.dirname(input), "edit-plan.json");
+const overridePath = process.env.BRAG_OVERRIDE || path.join(path.dirname(input), "override.json");
+const override = fs.existsSync(overridePath)
+  ? JSON.parse(fs.readFileSync(overridePath, "utf8"))
+  : { scenes: {} };
+
+const sceneOverrides = override.scenes || {};
+const global = override.global || {};
+
+function applyOverride(scene, index) {
+  const local = sceneOverrides[scene.id] || sceneOverrides[String(index + 1)] || {};
+  if (local.skip === true) return null;
+
+  const next = { ...scene, ...local };
+  if (local.duration != null) next.duration = Math.max(0.5, Number(local.duration));
+  if (local.narration != null) next.narration = String(local.narration);
+  if (local.motion != null) next.motion = local.motion;
+  if (local.cursor === null) next.cursor = null;
+  return next;
+}
+
+const scenes = pkg.scenes
+  .map(applyOverride)
+  .filter(Boolean);
 
 const plan = {
-  version: "1.7",
+  version: "2.1",
   product: pkg.product,
   source: pkg.source,
+  editedAt: new Date().toISOString(),
+  overrideFile: fs.existsSync(overridePath) ? overridePath : null,
   canvas: { width: 1280, height: 720, fps: 30 },
   safeAreas: {
     landscape: { x: 80, y: 60, width: 1120, height: 600 },
     portrait: { x: 48, y: 100, width: 624, height: 920 },
     square: { x: 60, y: 60, width: 780, height: 780 }
   },
-  scenes: pkg.scenes.map((scene, index) => ({
+  scenes: scenes.map((scene, index) => ({
     index: index + 1,
     id: scene.id,
     duration: scene.duration,
@@ -30,7 +54,7 @@ const plan = {
     motion: scene.motion || { type: "static", from: 1, to: 1 },
     cursor: scene.cursor || null,
     overlays: {
-      caption: true,
+      caption: global.captions !== false,
       sceneLabel: scene.id,
       cursorHighlight: Boolean(scene.cursor)
     },
@@ -40,3 +64,6 @@ const plan = {
 
 fs.writeFileSync(out, JSON.stringify(plan, null, 2));
 console.log(out);
+if (fs.existsSync(overridePath)) {
+  console.log("Human overrides applied from " + overridePath);
+}
