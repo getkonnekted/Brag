@@ -8,7 +8,7 @@ const BLOCKED = /(delete|remove|cancel|logout|log out|pay|purchase|buy|subscribe
 
 function clean(v) { return (v || "").replace(/\s+/g, " ").trim().slice(0, 140); }
 
-function isSafeHref(href, origin) {
+async function waitForStability(page) {\n  await page.waitForLoadState("domcontentloaded", { timeout: 12000 }).catch(() => {});\n  await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(() => {});\n  await page.waitForTimeout(350);\n}\n\nfunction isSafeHref(href, origin) {
   if (!href) return false;
   try {
     const u = new URL(href, origin);
@@ -73,11 +73,11 @@ async function runWorkflow(url, options = {}) {
   const visited = new Set();
 
   page.on("console", m => { if (m.type() === "error") errors.push(m.text()); });
-  page.on("pageerror", e => errors.push(e.message));
+  page.on("pageerror", e => errors.push(e.message));\n  page.on("requestfailed", r => requestFailures.push({ url: r.url(), failure: r.failure()?.errorText || "request failed" }));\n  page.on("crash", () => { pageCrashed = true; errors.push("Page crashed during capture."); });
 
   try {
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
-    await page.waitForLoadState("networkidle", { timeout: 12000 }).catch(() => {});
+    await waitForStability(page);
 
     const inspection = await inspectForDirector(page, url);
     const intelligence = buildIntelligence(inspection);
@@ -158,14 +158,14 @@ async function runWorkflow(url, options = {}) {
     }
 
     const manifest = {
-      version: "1.2",
+      version: "1.6",
       source: url,
       capturedAt: new Date().toISOString(),
       maxSteps,
       director: intelligence,
       shotPlan,
       steps,
-      consoleErrors: errors,
+      elapsedMs: Date.now() - startedAt,\n      consoleErrors: errors,\n      requestFailures,\n      captureHealth: { pageCrashed, requestFailureCount: requestFailures.length, actionFailures: steps.filter(s => s.type === "action-failed").length, recordingValid: false },
       policy: { sameOriginOnly: true, directorGuided: true, safeActionAllowlist: SAFE.source, blockedActionPattern: BLOCKED.source, maxSteps }
     };
     const recordedVideo = page.video();
