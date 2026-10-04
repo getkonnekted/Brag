@@ -1,6 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-const { runWorkflow } = require("./runner");
+const { runWorkflow } = require("./runner");\nconst { buildNarrative } = require("./director");
 
 function clean(v) { return (v || "").replace(/\s+/g, " ").trim(); }
 
@@ -10,7 +10,7 @@ function productName(url, title) {
   catch { return "your product"; }
 }
 
-function buildDemoPackage(manifest, description = "") {
+function buildDemoPackage(manifest, description = "") {\n  const observedStates = manifest.steps.filter(s => s.type === "state-captured");\n  const narrative = buildNarrative(manifest.director || {}, observedStates);
   const name = productName(manifest.source, manifest.steps.find(s => s.title)?.title);
   const states = manifest.steps.filter(s => s.type === "state-captured");
   const first = states[0];
@@ -22,7 +22,7 @@ function buildDemoPackage(manifest, description = "") {
       id: "hook",
       duration: 4,
       footage: manifest.steps[0]?.screenshot || null,
-      narration: description ? clean(description).slice(0, 220) : `${name} is built to solve a specific problem without adding unnecessary complexity.`,
+      narration: narrative.scenes[0]?.text || (description ? clean(description).slice(0, 220) : `${name} is built to solve a specific problem without adding unnecessary complexity.`),
       purpose: "Establish the problem and promise.",
       motion: { type: "slow-zoom", from: 1, to: 1.06 }
     },
@@ -31,7 +31,7 @@ function buildDemoPackage(manifest, description = "") {
       duration: 5,
       footage: realFootage || first?.screenshot || manifest.steps[0]?.screenshot || null,
       footageType: realFootage ? "real-browser-recording" : "screenshot",
-      narration: `Meet ${name}. This is the product in its real environment, not a mockup.`,
+      narration: narrative.scenes[1]?.text || `Meet ${name}. This is the product in its real environment, not a mockup.`,
       purpose: "Orient the viewer inside the actual product.",
       motion: { type: "static", from: 1, to: 1 }
     }
@@ -57,7 +57,7 @@ function buildDemoPackage(manifest, description = "") {
     duration: 6,
     footage: last?.screenshot || first?.screenshot || null,
     footageType: "state-screenshot",
-    narration: "The point is the outcome: the user gets from the starting problem to a useful result.",
+    narration: narrative.scenes[3]?.text || "The point is the outcome: the user gets from the starting problem to a useful result.",
     purpose: "Make the value visible.",
     motion: { type: "slow-zoom", from: 1.02, to: 1.07 }
   });
@@ -73,14 +73,14 @@ function buildDemoPackage(manifest, description = "") {
   });
 
   return {
-    version: "1.3",
+    version: "1.9",
     product: name,
     source: manifest.source,
     generatedAt: new Date().toISOString(),
     totalDuration: scenes.reduce((sum, s) => sum + s.duration, 0),
     scenes,
     realFootage: manifest.realFootage || null,
-    shotPlan: manifest.shotPlan || null,
+    shotPlan: manifest.shotPlan || null,\n    narrative,
     footageDirectory: "output/recording",
     next: "Feed this edit decision list into the renderer and TTS layer.",
     formats: ["16:9", "9:16", "1:1"],
