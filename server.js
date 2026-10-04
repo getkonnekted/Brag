@@ -30,7 +30,7 @@ async function inspect(url) {
   return result;
 }
 
-const server = http.createServer(async (req,res) => {
+const server = http.createServer(async (req,res) => {\n  if (req.method === "OPTIONS") { res.writeHead(204, {"Access-Control-Allow-Origin":"*", "Access-Control-Allow-Methods":"POST,OPTIONS", "Access-Control-Allow-Headers":"Content-Type"}); return res.end(); }
   try {
     if (req.method === "POST" && req.url === "/api/record") {
       let body=""; req.on("data", c => body += c);
@@ -39,7 +39,7 @@ const server = http.createServer(async (req,res) => {
           const { url, maxSteps } = JSON.parse(body || "{}");
           if (!url || !/^https?:\\/\\//i.test(url)) throw new Error("A valid http(s) URL is required.");
           const result = await runWorkflow(url, { maxSteps });
-          res.writeHead(200, {"Content-Type":"application/json","Access-Control-Allow-Origin":"*"});
+          res.writeHead(200, {"Content-Type":"application/json","Access-Control-Allow-Origin":"*","Access-Control-Allow-Methods":"POST,OPTIONS","Access-Control-Allow-Headers":"Content-Type"});
           res.end(JSON.stringify(result));
         } catch (e) {
           res.writeHead(400, {"Content-Type":"application/json"});
