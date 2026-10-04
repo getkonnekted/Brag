@@ -14,6 +14,19 @@ BRAG uses the real product as footage. It inspects a product, discovers a bounde
 
 `build → inspect → discover workflow → capture real footage → direct edit → narrate → render → QA → post`
 
+## v1.1
+
+BRAG's Director now builds a product-intelligence layer before story selection. It classifies the product archetype, extracts the product promise, identifies the strongest visible action, proposes the core workflow, and defines the proof moment.
+
+Run:
+
+```bash
+npm run capture -- https://your-product.com
+npm run director
+```
+
+The intelligence is deterministic and evidence-based. It does not invent product capabilities that were not observed during inspection.
+
 ## v1.0
 
 BRAG now has a local Director QA layer.
