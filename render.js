@@ -101,11 +101,21 @@ function buildScene(scene, index, formatKey, size) {
   }
 
   const output = path.join(workDir, formatKey + "-" + index + ".mp4");
-  execFileSync("ffmpeg", [
-    "-y", "-loop", "1", "-i", input, "-t", String(duration),
-    "-vf", filters.join(","),
-    "-an", "-r", String(fps), "-c:v", "libx264", "-pix_fmt", "yuv420p", output
-  ], { stdio: "inherit" });
+  const isVideo = /\\.(webm|mp4|mov|mkv)$/i.test(input);
+  const videoFilters = isVideo
+    ? [
+        "scale=" + size.width + ":" + size.height + ":force_original_aspect_ratio=increase",
+        "crop=" + size.width + ":" + size.height,
+        "drawtext=font='DejaVu Sans':textfile='" + escFilter(labelFile) + "':x=48:y=42:fontsize=" + (formatKey === "9x16" ? 30 : 26) + ":fontcolor=white@0.92:box=1:boxcolor=black@0.42:boxborderw=12",
+        "drawtext=font='DejaVu Sans':textfile='" + escFilter(captionFile) + "':x=48:y=h-" + (formatKey === "9x16" ? 250 : 120) + ":fontsize=" + (formatKey === "9x16" ? 30 : 28) + ":fontcolor=white:box=1:boxcolor=black@0.58:boxborderw=18:line_spacing=8"
+      ]
+    : filters;
+
+  const args = isVideo
+    ? ["-y", "-stream_loop", "-1", "-i", input, "-t", String(duration), "-vf", videoFilters.join(","), "-an", "-r", String(fps), "-c:v", "libx264", "-pix_fmt", "yuv420p", output]
+    : ["-y", "-loop", "1", "-i", input, "-t", String(duration), "-vf", filters.join(","), "-an", "-r", String(fps), "-c:v", "libx264", "-pix_fmt", "yuv420p", output];
+
+  execFileSync("ffmpeg", args, { stdio: "inherit" });
 
   return { output, duration };
 }
