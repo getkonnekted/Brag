@@ -38,6 +38,19 @@ Output is written to `output/`.
 
 ## Roadmap
 
-`URL / GitHub repo → inspect → discover workflow → operate real app → capture footage → narration → final demo`
+`URL / repo → inspect → discover workflow → record real product → direct edit → render → publish`
 
 **Core rule: AI should be the director, not the camera.**
+
+
+## v0.7
+
+BRAG now produces a visual edit plan from real captured product states.
+
+- Motion direction per scene
+- Cursor target metadata when available
+- Caption and safe-area rules
+- 16:9, 9:16, and 1:1 output targets
+- Crossfade/cut transition instructions
+
+The tool remains personal and local.
