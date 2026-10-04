@@ -12,43 +12,75 @@ const initialScenes: Scene[] = [
   { label: "05", title: "Close", duration: "04s", status: "Waiting" }
 ];
 
+const ENGINE = "http://localhost:4173";
+
 export default function Home() {
   const [url, setUrl] = useState("");
   const [description, setDescription] = useState("");
-  const [stage, setStage] = useState<"idle" | "inspecting" | "ready" | "capturing">("idle");
+  const [stage, setStage] = useState<"idle" | "inspecting" | "ready" | "capturing" | "error">("idle");
   const [scenes, setScenes] = useState(initialScenes);
   const [selected, setSelected] = useState(2);
+  const [inspection, setInspection] = useState<any>(null);
+  const [error, setError] = useState("");
 
   const productName = useMemo(() => {
     try { return new URL(url).hostname.replace(/^www\./, "").split(".")[0]; }
     catch { return "your product"; }
   }, [url]);
 
-  function buildStory() {
-    setStage("inspecting");
-    window.setTimeout(() => {
-      setScenes([
-        { label: "01", title: "The problem", duration: "04s", status: "Observed" },
-        { label: "02", title: productName + " enters", duration: "05s", status: "Observed" },
-        { label: "03", title: "Core workflow", duration: "09s", status: "Director pick" },
-        { label: "04", title: "Useful result", duration: "07s", status: "Proof target" },
-        { label: "05", title: "Close", duration: "04s", status: "Ready" }
-      ]);
-      setStage("ready");
-      setSelected(2);
-    }, 900);
+  async function engineRequest(path: string, body: object) {
+    const response = await fetch(ENGINE + path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "BRAG local engine failed.");
+    return data;
   }
 
-  function capture() {
-    setStage("capturing");
-    window.setTimeout(() => setStage("ready"), 1800);
+  async function buildStory() {
+    setStage("inspecting");
+    setError("");
+    try {
+      const data = await engineRequest("/api/inspect", { url });
+      setInspection(data.inspection);
+      const intelligence = data.storyboard?.intelligence;
+      const generatedScenes: Scene[] = [
+        { label: "01", title: "The problem", duration: "04s", status: "Observed" },
+        { label: "02", title: data.storyboard?.product || productName, duration: "05s", status: "Observed" },
+        { label: "03", title: "Core workflow", duration: "09s", status: "Director pick" },
+        { label: "04", title: "Useful result", duration: "07s", status: "Proof target" },
+        { label: "05", title: "Close", duration: "04s", status: intelligence?.strongestAction ? "Action: " + intelligence.strongestAction : "Ready" }
+      ];
+      setScenes(generatedScenes);
+      setSelected(2);
+      setStage("ready");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not reach the local BRAG engine.");
+      setStage("error");
+    }
   }
+
+  async function capture() {
+    setStage("capturing");
+    setError("");
+    try {
+      await engineRequest("/api/record", { url, maxSteps: 4 });
+      setStage("ready");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Capture failed.");
+      setStage("error");
+    }
+  }
+
+  const connected = Boolean(inspection);
 
   return (
     <main className="app-shell">
       <header className="topbar">
         <a className="brand" href="#"><span className="brand-mark">B</span><span>BRAG</span></a>
-        <nav><span>DIRECTOR</span><span>STUDIO</span><span className="engine-dot">● ENGINE LOCAL</span></nav>
+        <nav><span>DIRECTOR</span><span>STUDIO</span><span className="engine-dot">● {connected ? "ENGINE CONNECTED" : "LOCAL ENGINE"}</span></nav>
       </header>
 
       <section className="hero">
@@ -57,10 +89,7 @@ export default function Home() {
           <h1>Turn what you built into a demo people understand.</h1>
           <p>BRAG studies the real product, chooses the strongest workflow, captures real browser footage, and turns it into a story worth watching.</p>
         </div>
-        <div className="hero-meta">
-          <span>PERSONAL PRODUCTION TOOL</span>
-          <span>v2.3</span>
-        </div>
+        <div className="hero-meta"><span>PERSONAL PRODUCTION TOOL</span><span>v2.3</span></div>
       </section>
 
       <section className="workspace">
@@ -72,7 +101,8 @@ export default function Home() {
           <button className="primary" onClick={buildStory} disabled={!url || stage === "inspecting"}>
             {stage === "inspecting" ? "Inspecting product..." : "Build demo story"}
           </button>
-          <div className="engine-note"><span className="live-dot"/> Browser capture runs through your local BRAG engine. Vercel hosts the control surface.</div>
+          <div className="engine-note"><span className="live-dot"/> The browser UI talks to your local BRAG engine on port 4173. Vercel hosts only this control surface.</div>
+          {error && <div className="engine-error">{error}<br/><small>Start the engine with <code>npm run engine</code>.</small></div>}
         </aside>
 
         <section className="director-panel">
@@ -80,9 +110,9 @@ export default function Home() {
           <div className="director-grid">
             <div className="intelligence">
               <div className="mini-label">PRODUCT INTELLIGENCE</div>
-              <h3>{stage === "idle" ? "No product inspected" : productName}</h3>
-              <p>{description || "The Director will ground the story in observed product evidence."}</p>
-              <div className="signals"><span>ARCHETYPE <b>{stage === "ready" ? "PRODUCT" : "—"}</b></span><span>PROOF <b>{stage === "ready" ? "RESULT" : "—"}</b></span></div>
+              <h3>{stage === "idle" ? "No product inspected" : inspection?.title || productName}</h3>
+              <p>{inspection?.description || description || "The Director will ground the story in observed product evidence."}</p>
+              <div className="signals"><span>ARCHETYPE <b>{inspection ? "OBSERVED" : "—"}</b></span><span>PROOF <b>{inspection ? "RESULT" : "—"}</b></span></div>
             </div>
             <div className="director-quote">
               <div className="mini-label">DIRECTOR DECISION</div>
