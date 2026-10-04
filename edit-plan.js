@@ -9,6 +9,8 @@ if (!fs.existsSync(input)) {
 
 const pkg = JSON.parse(fs.readFileSync(input, "utf8"));
 const overridePath = process.env.BRAG_OVERRIDE || path.join(path.dirname(input), "override.json");
+const recordingManifestPath = path.join(path.dirname(input), "..", "recording", "manifest.json");
+const recordingManifest = fs.existsSync(recordingManifestPath) ? JSON.parse(fs.readFileSync(recordingManifestPath, "utf8")) : null;
 const override = fs.existsSync(overridePath)
   ? JSON.parse(fs.readFileSync(overridePath, "utf8"))
   : { scenes: {} };
@@ -37,6 +39,11 @@ const plan = {
   product: pkg.product,
   source: pkg.source,
   editedAt: new Date().toISOString(),
+  timeline: {
+    source: recordingManifest ? "recording-manifest" : "scene-duration-plan",
+    captureDurationMs: recordingManifest?.elapsedMs || null,
+    cuts: (recordingManifest?.steps || []).filter(s => s.type === "state-captured").map(s => ({ step: s.step, timestamp: s.timestamp || null, durationMs: s.elapsedMs || null }))
+  },
   overrideFile: fs.existsSync(overridePath) ? overridePath : null,
   canvas: { width: 1280, height: 720, fps: 30 },
   safeAreas: {
