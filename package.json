@@ -1,15 +1,17 @@
 {
-  "name":"brag",
-  "version":"0.4.0",
-  "private":true,
-  "description":"BRAG product-to-video demo engine",
-  "scripts":{
-    "start":"node server.js",
-    "capture":"node capture.js",
-    "workflow":"node workflow.js",
-    "record":"node recorder.js",
-    "run":"node runner.js",
-    "record":"node recorder.js"
+  "name": "brag",
+  "version": "0.6.0",
+  "private": true,
+  "description": "BRAG product-to-video demo engine",
+  "scripts": {
+    "start": "node server.js",
+    "capture": "node capture.js",
+    "workflow": "node workflow.js",
+    "run": "node runner.js",
+    "demo": "node demo.js",
+    "render": "node render.js"
   },
-  "dependencies":{"playwright":"^1.55.0"}
+  "dependencies": {
+    "playwright": "^1.55.0"
+  }
 }
