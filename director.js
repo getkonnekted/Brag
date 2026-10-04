@@ -64,6 +64,40 @@ function buildIntelligence(inspection) {
   };
 }
 
+function buildShotPlan(intelligence) {
+  const archetype = intelligence.archetype;
+  const workflow = intelligence.workflow || [];
+  const shots = [
+    { id: "establish", type: "establish", duration: 3, goal: "Show the real product clearly before interaction.", action: null },
+    { id: "primary-action", type: "interaction", duration: 4, goal: workflow[0] || "Start the primary experience.", action: intelligence.strongestAction },
+    { id: "core-action", type: "interaction", duration: 6, goal: workflow[1] || "Show the core user action.", action: null },
+    { id: "proof", type: "result", duration: 5, goal: workflow[2] || intelligence.proof, action: null },
+    { id: "hold", type: "hold", duration: 3, goal: "Hold the useful outcome long enough to understand it.", action: null },
+    { id: "close", type: "close", duration: 3, goal: intelligence.strongestAction ? "Return attention to the clearest product action: " + intelligence.strongestAction : "End on the clearest next action.", action: intelligence.strongestAction }
+  ];
+
+  if (archetype === "game") {
+    shots[1].goal = "Enter the playable experience.";
+    shots[2].goal = "Show the core game action.";
+    shots[3].goal = "Hold the score, progression, or result.";
+  } else if (archetype === "commerce") {
+    shots[1].goal = "Enter the product or offer discovery path.";
+    shots[2].goal = "Show the decision point without completing a purchase.";
+    shots[3].goal = "Show visible offer or conversion evidence.";
+  } else if (archetype === "ai-workflow") {
+    shots[1].goal = "Enter the AI workflow.";
+    shots[2].goal = "Show the input or generation step without submitting sensitive data.";
+    shots[3].goal = "Hold the generated output or automation result.";
+  }
+
+  return {
+    version: "1.0",
+    strategy: "director-shot-plan",
+    shots,
+    safety: "Shots may guide capture but never override runner safety policy."
+  };
+}
+
 function buildStoryboard(inspection) {
   const intelligence = buildIntelligence(inspection);
   const scenes = [
@@ -79,6 +113,7 @@ function buildStoryboard(inspection) {
     source: inspection.url,
     product: intelligence.product,
     intelligence,
+    shotPlan: buildShotPlan(intelligence),
     scenes,
     signals: {
       hasDescription: Boolean(inspection.description),
@@ -102,4 +137,4 @@ if (require.main === module) {
   console.log(JSON.stringify(storyboard, null, 2));
 }
 
-module.exports = { buildStoryboard, buildIntelligence };
+module.exports = { buildStoryboard, buildIntelligence, buildShotPlan };
