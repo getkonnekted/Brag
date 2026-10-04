@@ -153,10 +153,30 @@ async function runWorkflow(url, options = {}) {
       consoleErrors: errors,
       policy: { sameOriginOnly: true, directorGuided: true, safeActionAllowlist: SAFE.source, blockedActionPattern: BLOCKED.source, maxSteps }
     };
+    await context.close();
+    const recordedVideo = page.video();
+    if (recordedVideo) {
+      try {
+        const videoPath = await recordedVideo.path();
+        const target = path.join(outputDir, "real-product-footage.webm");
+        fs.copyFileSync(videoPath, target);
+        manifest.realFootage = {
+          file: "real-product-footage.webm",
+          format: "webm",
+          source: "playwright-browser-recording",
+          path: target
+        };
+      } catch (error) {
+        manifest.realFootage = { file: null, error: error.message };
+      }
+    }
     fs.writeFileSync(path.join(outputDir, "manifest.json"), JSON.stringify(manifest, null, 2));
+    await browser.close();
     return manifest;
   } finally {
-    await context.close();
+    if (page.video()) {
+      try { await context.close(); } catch {}
+    }
     await browser.close();
   }
 }
