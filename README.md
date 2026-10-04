@@ -14,6 +14,28 @@ BRAG uses the real product as footage. It inspects a product, discovers a bounde
 
 `build → inspect → discover workflow → capture real footage → direct edit → narrate → render → QA → post`
 
+## v1.2
+
+The browser runner is now Director-guided.
+
+Before interacting with a product, BRAG derives the product archetype, promise, strongest visible action, and workflow intent. The runner uses those signals to rank safe actions instead of relying only on generic CTA ordering.
+
+Each selected action records the Director decision and captures the click target coordinates for later visual emphasis.
+
+The safety boundary remains unchanged:
+
+- same-origin navigation only
+- bounded step count
+- destructive/payment/auth actions blocked
+- no form submission
+- no arbitrary external navigation
+
+Run:
+
+```bash
+npm run run -- https://your-product.com 4
+```
+
 ## v1.1
 
 BRAG's Director now builds a product-intelligence layer before story selection. It classifies the product archetype, extracts the product promise, identifies the strongest visible action, proposes the core workflow, and defines the proof moment.
