@@ -54,3 +54,30 @@ BRAG now produces a visual edit plan from real captured product states.
 - Crossfade/cut transition instructions
 
 The tool remains personal and local.
+
+## v0.8
+
+BRAG now renders the edit plan into actual video.
+
+- Motion-aware scene rendering
+- Slow zoom and directional push effects
+- Real product screenshots as footage
+- Cursor target highlighting
+- Scene labels and narration captions
+- Crossfade transitions
+- 16:9, 9:16, and 1:1 MP4 outputs
+
+Run:
+
+```bash
+npm run demo -- https://your-product.com 4 "What this product does"
+npm run render
+```
+
+Outputs:
+
+- `output/render/brag-demo-16x9.mp4`
+- `output/render/brag-demo-9x16.mp4`
+- `output/render/brag-demo-1x1.mp4`
+
+BRAG is still a personal, local production tool. No accounts, billing, tenants, or SaaS layer.
