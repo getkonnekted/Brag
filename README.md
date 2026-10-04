@@ -14,6 +14,42 @@ BRAG uses the real product as footage. It inspects a product, discovers a bounde
 
 `build → inspect → discover workflow → capture real footage → direct edit → narrate → render → QA → post`
 
+## v1.3
+
+BRAG now preserves the real browser recording produced by Playwright.
+
+The demo package treats that recording as primary product footage for the product-orientation scene, while state screenshots remain useful for precise workflow/result moments.
+
+Pipeline:
+
+```text
+real product
+  ↓
+Playwright recording
+  ↓
+Director-guided interaction
+  ↓
+real browser footage + state evidence
+  ↓
+edit plan
+  ↓
+voice
+  ↓
+render
+```
+
+The renderer supports video footage as well as screenshots. This keeps the product visible as it actually behaves instead of turning the entire demo into animated screenshots.
+
+Run:
+
+```bash
+npm run demo -- https://your-product.com 4 "What this product does"
+npm run edit-plan
+npm run voice
+npm run render
+npm run qa
+```
+
 ## v1.2
 
 The browser runner is now Director-guided.
