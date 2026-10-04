@@ -81,7 +81,8 @@ function writeFinalManifest(qaReport) {
 function main() {
   checkEnvironment();
   if (checkOnly) {
-    console.log("BRAG environment is ready.");
+    run("HARDENING", "harden.js");
+    console.log("BRAG environment and source checks are ready.");
     return;
   }
 
