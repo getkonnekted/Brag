@@ -69,6 +69,9 @@ async function runWorkflow(url, options = {}) {
   const page = await context.newPage();
   const origin = new URL(url).origin;
   const errors = [];
+  const requestFailures = [];
+  let pageCrashed = false;
+  const startedAt = Date.now();
   const steps = [];
   const visited = new Set();
 
@@ -86,6 +89,7 @@ async function runWorkflow(url, options = {}) {
 
     for (let step = 1; step <= maxSteps; step++) {
       const shot = shotPlan.shots[Math.min(step - 1, shotPlan.shots.length - 1)];
+      const actionStartedAt = Date.now();
       const beforeUrl = page.url();
       const screenshot = `step-${String(step).padStart(2, "0")}-before.png`;
       await page.screenshot({ path: path.join(outputDir, screenshot), fullPage: false });
@@ -98,7 +102,7 @@ async function runWorkflow(url, options = {}) {
 
       const target = candidates.find(a => !visited.has(`${page.url()}|${a.text}|${a.href || ""}`));
       if (!target) {
-        steps.push({ step, type: "stop", reason: "No new director-approved safe action found", url: page.url(), screenshot });
+        steps.push({ step, type: "stop", timestamp: new Date().toISOString(), reason: "No new director-approved safe action found", url: page.url(), screenshot });
         break;
       }
 
@@ -108,6 +112,7 @@ async function runWorkflow(url, options = {}) {
       steps.push({
         step,
         type: "action-selected",
+        timestamp: new Date().toISOString(),
         action: { text: target.text, tag: target.tag, href: target.href || null },
         director: {
           archetype: intelligence.archetype,
@@ -150,10 +155,10 @@ async function runWorkflow(url, options = {}) {
 
       const cursor = { x: target.x + target.width / 2, y: target.y + target.height / 2 };
       steps.push({
-        step, type: "state-captured", url: afterUrl, urlChanged: beforeUrl !== afterUrl,
+        step, type: "state-captured", timestamp: new Date().toISOString(), url: afterUrl, urlChanged: beforeUrl !== afterUrl,
         shot: shot ? { id: shot.id, type: shot.type, goal: shot.goal } : null,
         title: await page.title(), headings: headings.map(clean).filter(Boolean).slice(0,8),
-        screenshot: afterScreenshot, cursor
+        screenshot: afterScreenshot, cursor, elapsedMs: Date.now() - actionStartedAt
       });
     }
 
