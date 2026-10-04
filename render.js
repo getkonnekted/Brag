@@ -55,6 +55,31 @@ function sourceFile(scene) {
   return fs.existsSync(file) ? file : null;
 }
 
+function interactionFilters(interaction, size) {
+  if (!interaction || !interaction.focus) return [];
+  const x = Math.round(Number(interaction.focus.x) * size.width / 1280);
+  const y = Math.round(Number(interaction.focus.y) * size.height / 720);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return [];
+
+  const radius = Math.max(18, Math.round(Math.min(size.width, size.height) * 0.045));
+  const left = Math.max(0, x - radius);
+  const top = Math.max(0, y - radius);
+  const filters = [];
+
+  if ((interaction.effects || []).includes("focus-hold")) {
+    filters.push("drawbox=x=" + left + ":y=" + top + ":w=" + (radius * 2) + ":h=" + (radius * 2) + ":color=white@0.78:t=3");
+  }
+
+  if ((interaction.effects || []).includes("click-ring")) {
+    filters.push(
+      "drawbox=x=" + (x - radius) + ":y=" + (y - radius) + ":w=" + (radius * 2) + ":h=" + (radius * 2) +
+      ":color=white@0.9:t=4:enable='between(t,0.15,0.85)'"
+    );
+  }
+
+  return filters;
+}
+
 function motionFilter(motion, duration, fps, width, height) {
   const type = motion && motion.type ? motion.type : "static";
   const from = Number(motion && motion.from) || 1;
@@ -100,6 +125,8 @@ function buildScene(scene, index, formatKey, size) {
     filters.push("drawbox=x=" + Math.max(0, cx - 30) + ":y=" + Math.max(0, cy - 30) + ":w=60:h=60:color=white@0.88:t=4");
   }
 
+  filters.push(...interactionFilters(scene.interaction, size));
+
   const output = path.join(workDir, formatKey + "-" + index + ".mp4");
   const isVideo = /\\.(webm|mp4|mov|mkv)$/i.test(input);
   const videoFilters = isVideo
@@ -107,7 +134,8 @@ function buildScene(scene, index, formatKey, size) {
         "scale=" + size.width + ":" + size.height + ":force_original_aspect_ratio=increase",
         "crop=" + size.width + ":" + size.height,
         "drawtext=font='DejaVu Sans':textfile='" + escFilter(labelFile) + "':x=48:y=42:fontsize=" + (formatKey === "9x16" ? 30 : 26) + ":fontcolor=white@0.92:box=1:boxcolor=black@0.42:boxborderw=12",
-        "drawtext=font='DejaVu Sans':textfile='" + escFilter(captionFile) + "':x=48:y=h-" + (formatKey === "9x16" ? 250 : 120) + ":fontsize=" + (formatKey === "9x16" ? 30 : 28) + ":fontcolor=white:box=1:boxcolor=black@0.58:boxborderw=18:line_spacing=8"
+        "drawtext=font='DejaVu Sans':textfile='" + escFilter(captionFile) + "':x=48:y=h-" + (formatKey === "9x16" ? 250 : 120) + ":fontsize=" + (formatKey === "9x16" ? 30 : 28) + ":fontcolor=white:box=1:boxcolor=black@0.58:boxborderw=18:line_spacing=8",
+        ...interactionFilters(scene.interaction, size)
       ]
     : filters;
 
