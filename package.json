@@ -7,6 +7,8 @@
     "start":"node server.js",
     "capture":"node capture.js",
     "workflow":"node workflow.js",
+    "record":"node recorder.js",
+    "run":"node runner.js",
     "record":"node recorder.js"
   },
   "dependencies":{"playwright":"^1.55.0"}
