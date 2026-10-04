@@ -81,3 +81,19 @@ Outputs:
 - `output/render/brag-demo-1x1.mp4`
 
 BRAG is still a personal, local production tool. No accounts, billing, tenants, or SaaS layer.
+
+
+## v0.9
+
+BRAG now has a local voice layer using Piper TTS.
+
+Generate narration from the demo package:
+
+```bash
+PIPER_MODEL=/path/to/voice.onnx npm run voice
+npm run render
+```
+
+Voice output is stored under `output/demo/audio/`. The renderer automatically detects the narration manifest and muxes the generated voice into the final MP4s.
+
+The voice layer is local and optional. Without a configured Piper model, BRAG continues to render silent video.
