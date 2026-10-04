@@ -3,6 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const { chromium } = require("playwright");
 const { buildStoryboard } = require("./director");
+const { runWorkflow } = require("./runner");
 
 const PORT = process.env.PORT || 4173;
 const root = __dirname;
@@ -31,6 +32,23 @@ async function inspect(url) {
 
 const server = http.createServer(async (req,res) => {
   try {
+    if (req.method === "POST" && req.url === "/api/record") {
+      let body=""; req.on("data", c => body += c);
+      req.on("end", async () => {
+        try {
+          const { url, maxSteps } = JSON.parse(body || "{}");
+          if (!url || !/^https?:\\/\\//i.test(url)) throw new Error("A valid http(s) URL is required.");
+          const result = await runWorkflow(url, { maxSteps });
+          res.writeHead(200, {"Content-Type":"application/json","Access-Control-Allow-Origin":"*"});
+          res.end(JSON.stringify(result));
+        } catch (e) {
+          res.writeHead(400, {"Content-Type":"application/json"});
+          res.end(JSON.stringify({ error:e.message }));
+        }
+      });
+      return;
+    }
+
     if (req.method === "POST" && req.url === "/api/inspect") {
       let body=""; req.on("data", c => body += c);
       req.on("end", async () => {
