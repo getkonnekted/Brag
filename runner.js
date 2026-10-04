@@ -1,7 +1,7 @@
 const { chromium } = require("playwright");
 const fs = require("fs");
 const path = require("path");
-const { buildIntelligence } = require("./director");
+const { buildIntelligence, buildShotPlan } = require("./director");
 
 const SAFE = /^(start|get started|try|try it|demo|explore|learn more|discover|play|begin|launch|view demo|see demo|continue|next|open|view|details|dashboard|features|how it works)$/i;
 const BLOCKED = /(delete|remove|cancel|logout|log out|pay|purchase|buy|subscribe|checkout|transfer|withdraw|send money|confirm payment|publish|post|deploy|password|reset password|verify|sign in|signin|login|log in|upload|download)/i;
@@ -82,8 +82,10 @@ async function runWorkflow(url, options = {}) {
     const inspection = await inspectForDirector(page, url);
     const intelligence = buildIntelligence(inspection);
     intelligence.origin = origin;
+    const shotPlan = buildShotPlan(intelligence);
 
     for (let step = 1; step <= maxSteps; step++) {
+      const shot = shotPlan.shots[Math.min(step - 1, shotPlan.shots.length - 1)];
       const beforeUrl = page.url();
       const screenshot = `step-${String(step).padStart(2, "0")}-before.png`;
       await page.screenshot({ path: path.join(outputDir, screenshot), fullPage: false });
@@ -107,7 +109,18 @@ async function runWorkflow(url, options = {}) {
         step,
         type: "action-selected",
         action: { text: target.text, tag: target.tag, href: target.href || null },
-        director: { archetype: intelligence.archetype, promise: intelligence.promise, strongestAction: intelligence.strongestAction, score: target.score },
+        director: {
+          archetype: intelligence.archetype,
+          promise: intelligence.promise,
+          strongestAction: intelligence.strongestAction,
+          score: target.score
+        },
+        shot: shot ? {
+          id: shot.id,
+          type: shot.type,
+          goal: shot.goal,
+          plannedDuration: shot.duration
+        } : null,
         url: page.url(),
         screenshot
       });
@@ -138,6 +151,7 @@ async function runWorkflow(url, options = {}) {
       const cursor = { x: target.x + target.width / 2, y: target.y + target.height / 2 };
       steps.push({
         step, type: "state-captured", url: afterUrl, urlChanged: beforeUrl !== afterUrl,
+        shot: shot ? { id: shot.id, type: shot.type, goal: shot.goal } : null,
         title: await page.title(), headings: headings.map(clean).filter(Boolean).slice(0,8),
         screenshot: afterScreenshot, cursor
       });
@@ -149,12 +163,13 @@ async function runWorkflow(url, options = {}) {
       capturedAt: new Date().toISOString(),
       maxSteps,
       director: intelligence,
+      shotPlan,
       steps,
       consoleErrors: errors,
       policy: { sameOriginOnly: true, directorGuided: true, safeActionAllowlist: SAFE.source, blockedActionPattern: BLOCKED.source, maxSteps }
     };
-    await context.close();
     const recordedVideo = page.video();
+    await context.close();
     if (recordedVideo) {
       try {
         const videoPath = await recordedVideo.path();
@@ -174,10 +189,7 @@ async function runWorkflow(url, options = {}) {
     await browser.close();
     return manifest;
   } finally {
-    if (page.video()) {
-      try { await context.close(); } catch {}
-    }
-    await browser.close();
+    await browser.close().catch(() => {});
   }
 }
 
