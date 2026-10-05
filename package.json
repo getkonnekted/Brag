@@ -18,7 +18,8 @@
     "check": "node brag.js --check",
     "dev": "next dev",
     "build": "next build",
-    "engine": "node server.js"
+    "engine": "node server.js",
+    "personal": "node personal.js"
   },
   "dependencies": {
     "playwright": "^1.55.0",
