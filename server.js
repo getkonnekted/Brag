@@ -31,8 +31,24 @@ async function inspect(url) {
   return result;
 }
 
-const server = http.createServer(async (req,res) => {\n  if (req.method === "OPTIONS") { res.writeHead(204, {"Access-Control-Allow-Origin":"*", "Access-Control-Allow-Methods":"POST,OPTIONS", "Access-Control-Allow-Headers":"Content-Type"}); return res.end(); }
+const server = http.createServer(async (req,res) => {
+  if (req.method === "OPTIONS") { res.writeHead(204, {"Access-Control-Allow-Origin":"*", "Access-Control-Allow-Methods":"POST,OPTIONS", "Access-Control-Allow-Headers":"Content-Type"}); return res.end(); }
   try {
+    if (req.method === "GET" && req.url === "/api/health") {
+      res.writeHead(200, {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "no-store"
+      });
+      return res.end(JSON.stringify({
+        ok: true,
+        service: "brag-engine",
+        version: "2.3",
+        capabilities: ["inspect", "record", "produce"],
+        timestamp: new Date().toISOString()
+      }));
+    }
+
     if (req.method === "POST" && req.url === "/api/record") {
       let body=""; req.on("data", c => body += c);
       req.on("end", async () => {
