@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type Scene = { label: string; title: string; duration: string; status: string };
 
@@ -12,7 +12,7 @@ const initialScenes: Scene[] = [
   { label: "05", title: "Close", duration: "04s", status: "Waiting" }
 ];
 
-const ENGINE = (process.env.NEXT_PUBLIC_BRAG_ENGINE_URL || "http://localhost:4173").replace(/\/$/, "");
+const DEFAULT_ENGINE = (process.env.NEXT_PUBLIC_BRAG_ENGINE_URL || "http://localhost:4173").replace(/\/$/, "");
 
 type EngineStatus = "unknown" | "checking" | "connected" | "offline";
 
@@ -25,6 +25,15 @@ export default function Home() {
   const [inspection, setInspection] = useState<any>(null);
   const [error, setError] = useState("");
   const [engineStatus, setEngineStatus] = useState<EngineStatus>("unknown");
+  const [engineUrl, setEngineUrl] = useState(DEFAULT_ENGINE);
+  const [engineToken, setEngineToken] = useState("");
+
+  useEffect(() => {
+    setEngineUrl(localStorage.getItem("brag_engine_url") || DEFAULT_ENGINE);
+    setEngineToken(localStorage.getItem("brag_engine_token") || "");
+  }, []);
+
+  const ENGINE = engineUrl.replace(/\/$/, "");
 
   const productName = useMemo(() => {
     try { return new URL(url).hostname.replace(/^www\./, "").split(".")[0]; }
@@ -48,7 +57,7 @@ export default function Home() {
     setEngineStatus("checking");
     const response = await fetch(ENGINE + path, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(engineToken ? { Authorization: `Bearer ${engineToken}` } : {}) },
       body: JSON.stringify(body)
     });
     const data = await response.json().catch(() => ({}));
@@ -137,8 +146,8 @@ export default function Home() {
           <button className="primary" onClick={buildStory} disabled={!url || stage === "inspecting"}>
             {stage === "inspecting" ? "Inspecting product..." : "Build demo story"}
           </button>
-          <div className="engine-note"><span className="live-dot"/> Engine: <code>{ENGINE}</code>. Vercel hosts the control surface; Playwright, FFmpeg, capture and rendering run in the BRAG engine.</div>
-          {error && <div className="engine-error">{error}<br/><small>Local: <code>npm run engine</code>. Remote: set <code>NEXT_PUBLIC_BRAG_ENGINE_URL</code> in Vercel.</small></div>}
+          <div className="engine-settings"><label>Engine URL<input value={engineUrl} onChange={e => setEngineUrl(e.target.value)} onBlur={() => localStorage.setItem("brag_engine_url", e.target.value.replace(/\/$/, ""))} placeholder="https://your-brag-worker.example.com" /></label><label>Worker token<input type="password" value={engineToken} onChange={e => setEngineToken(e.target.value)} onBlur={() => localStorage.setItem("brag_engine_token", e.target.value)} placeholder="Optional if worker auth is enabled" /></label></div><div className="engine-note"><span className="live-dot"/> Engine: <code>{ENGINE}</code>. Vercel hosts the control surface; Playwright, FFmpeg, capture and rendering run in the BRAG engine.</div>
+          {error && <div className="engine-error">{error}<br/><small>Local: <code>npm run personal</code>. Remote: enter your secure worker URL and token above.</small></div>}
         </aside>
 
         <section className="director-panel">
