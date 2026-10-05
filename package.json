@@ -19,7 +19,8 @@
     "dev": "next dev",
     "build": "next build",
     "engine": "node server.js",
-    "personal": "node personal.js"
+    "personal": "node personal.js",
+    "personal:remote": "node remote.js"
   },
   "dependencies": {
     "playwright": "^1.55.0",
