@@ -12,7 +12,7 @@ const initialScenes: Scene[] = [
   { label: "05", title: "Close", duration: "04s", status: "Waiting" }
 ];
 
-const ENGINE = (process.env.NEXT_PUBLIC_BRAG_ENGINE_URL || "http://localhost:4173").replace(/\\/$/, "");
+const ENGINE = (process.env.NEXT_PUBLIC_BRAG_ENGINE_URL || "http://localhost:4173").replace(/\/$/, "");
 
 type EngineStatus = "unknown" | "checking" | "connected" | "offline";
 
