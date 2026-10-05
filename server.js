@@ -9,59 +9,43 @@ const { runWorkflow } = require("./runner");
 
 const PORT = Number(process.env.PORT || 4173);
 const ENGINE_TOKEN = process.env.BRAG_ENGINE_TOKEN || "";
-const ALLOWED_ORIGIN = process.env.BRAG_ALLOWED_ORIGIN || "*";
+const ALLOWED_ORIGIN =
+  process.env.BRAG_ALLOWED_ORIGIN || "*";
 
 const ROOT = __dirname;
 
-const MIME_TYPES = {
-  ".html": "text/html; charset=utf-8",
-  ".js": "text/javascript; charset=utf-8",
-  ".css": "text/css; charset=utf-8",
-  ".json": "application/json; charset=utf-8",
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".svg": "image/svg+xml",
-  ".webp": "image/webp",
-  ".webm": "video/webm",
-  ".mp4": "video/mp4",
-  ".txt": "text/plain; charset=utf-8"
-};
-
-/* ---------------------------------------------------------
-   CORS
---------------------------------------------------------- */
+/* =========================================================
+   RESPONSE HELPERS
+========================================================= */
 
 function corsHeaders() {
   return {
     "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Methods":
+      "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers":
       "Content-Type, Authorization",
-    "Access-Control-Max-Age": "86400",
-    Vary: "Origin"
+    "Access-Control-Max-Age": "86400"
   };
 }
 
-function jsonHeaders() {
-  return {
-    "Content-Type": "application/json; charset=utf-8",
-    ...corsHeaders()
-  };
-}
-
-function sendJson(res, status, payload) {
+function sendJson(res, status, data) {
   if (res.headersSent) {
     return;
   }
 
-  res.writeHead(status, jsonHeaders());
-  res.end(JSON.stringify(payload));
+  res.writeHead(status, {
+    "Content-Type":
+      "application/json; charset=utf-8",
+    ...corsHeaders()
+  });
+
+  res.end(JSON.stringify(data));
 }
 
-/* ---------------------------------------------------------
+/* =========================================================
    AUTH
---------------------------------------------------------- */
+========================================================= */
 
 function isAuthorized(req) {
   if (!ENGINE_TOKEN) {
@@ -71,7 +55,10 @@ function isAuthorized(req) {
   const authorization =
     req.headers.authorization || "";
 
-  return authorization === `Bearer ${ENGINE_TOKEN}`;
+  return (
+    authorization ===
+    `Bearer ${ENGINE_TOKEN}`
+  );
 }
 
 function requireAuth(req, res) {
@@ -81,15 +68,15 @@ function requireAuth(req, res) {
 
   sendJson(res, 401, {
     ok: false,
-    error: "Unauthorized. Configure the BRAG engine token."
+    error: "Unauthorized"
   });
 
   return false;
 }
 
-/* ---------------------------------------------------------
+/* =========================================================
    REQUEST BODY
---------------------------------------------------------- */
+========================================================= */
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -100,7 +87,9 @@ function readBody(req) {
 
       if (body.length > 2 * 1024 * 1024) {
         reject(
-          new Error("Request body is too large.")
+          new Error(
+            "Request body is too large."
+          )
         );
 
         req.destroy();
@@ -115,9 +104,11 @@ function readBody(req) {
 
       try {
         resolve(JSON.parse(body));
-      } catch {
+      } catch (error) {
         reject(
-          new Error("Invalid JSON request body.")
+          new Error(
+            "Invalid JSON request body."
+          )
         );
       }
     });
@@ -126,9 +117,9 @@ function readBody(req) {
   });
 }
 
-/* ---------------------------------------------------------
+/* =========================================================
    VALIDATION
---------------------------------------------------------- */
+========================================================= */
 
 function validUrl(url) {
   return (
@@ -137,17 +128,16 @@ function validUrl(url) {
   );
 }
 
-/* ---------------------------------------------------------
+/* =========================================================
    PRODUCT INSPECTION
---------------------------------------------------------- */
+========================================================= */
 
 async function inspectProduct(url) {
   let browser = null;
 
   try {
     console.log(
-      "[BRAG] Launching Chromium for:",
-      url
+      "[BRAG] Launching Chromium..."
     );
 
     browser = await chromium.launch({
@@ -166,95 +156,124 @@ async function inspectProduct(url) {
 
     page.on("console", message => {
       if (message.type() === "error") {
-        consoleErrors.push(message.text());
+        consoleErrors.push(
+          message.text()
+        );
       }
     });
 
     page.on("pageerror", error => {
-      pageErrors.push(error.message);
+      pageErrors.push(
+        error.message
+      );
     });
 
     console.log(
-      "[BRAG] Navigating to:",
+      "[BRAG] Visiting:",
       url
     );
 
-    const response = await page.goto(url, {
-      waitUntil: "domcontentloaded",
-      timeout: 30000
-    });
+    const response = await page.goto(
+      url,
+      {
+        waitUntil:
+          "domcontentloaded",
+        timeout: 30000
+      }
+    );
 
     const status = response
       ? response.status()
       : null;
 
     console.log(
-      "[BRAG] Page loaded:",
+      "[BRAG] HTTP status:",
       status
     );
 
     await page
-      .waitForLoadState("networkidle", {
-        timeout: 12000
-      })
+      .waitForLoadState(
+        "networkidle",
+        {
+          timeout: 12000
+        }
+      )
       .catch(() => {});
 
-    const title = await page
-      .title()
-      .catch(() => "");
+    const title =
+      await page
+        .title()
+        .catch(() => "");
 
-    const description = await page
-      .locator('meta[name="description"]')
-      .getAttribute("content")
-      .catch(() => null);
+    const description =
+      await page
+        .locator(
+          'meta[name="description"]'
+        )
+        .getAttribute("content")
+        .catch(() => null);
 
-    const headings = await page
-      .locator("h1,h2,h3")
-      .allTextContents()
-      .catch(() => []);
+    const headings =
+      await page
+        .locator("h1,h2,h3")
+        .allTextContents()
+        .catch(() => []);
 
-    const buttons = await page
-      .locator(
-        'button,[role="button"],input[type="submit"]'
-      )
-      .evaluateAll(elements =>
-        elements
-          .slice(0, 30)
-          .map(element => ({
-            text: (
-              element.innerText ||
-              element.value ||
-              element.getAttribute("aria-label") ||
-              ""
+    const buttons =
+      await page
+        .locator(
+          'button,[role="button"],input[type="submit"]'
+        )
+        .evaluateAll(elements =>
+          elements
+            .slice(0, 30)
+            .map(element => ({
+              text: (
+                element.innerText ||
+                element.value ||
+                element.getAttribute(
+                  "aria-label"
+                ) ||
+                ""
+              )
+                .trim()
+                .replace(
+                  /\s+/g,
+                  " "
+                )
+            }))
+            .filter(
+              item => item.text
             )
-              .trim()
-              .replace(/\s+/g, " ")
-          }))
-          .filter(item => item.text)
-      )
-      .catch(() => []);
+        )
+        .catch(() => []);
 
-    const links = await page
-      .locator("a")
-      .evaluateAll(elements =>
-        elements
-          .slice(0, 40)
-          .map(element => ({
-            text: (
-              element.innerText || ""
+    const links =
+      await page
+        .locator("a")
+        .evaluateAll(elements =>
+          elements
+            .slice(0, 40)
+            .map(element => ({
+              text: (
+                element.innerText ||
+                ""
+              )
+                .trim()
+                .replace(
+                  /\s+/g,
+                  " "
+                ),
+              href:
+                element.href || ""
+            }))
+            .filter(
+              item =>
+                item.text ||
+                item.href
             )
-              .trim()
-              .replace(/\s+/g, " "),
-            href:
-              element.href || ""
-          }))
-          .filter(
-            item =>
-              item.text ||
-              item.href
-          )
-      )
-      .catch(() => []);
+        )
+        .catch(() => []);
 
     return {
       url,
@@ -276,194 +295,217 @@ async function inspectProduct(url) {
   }
 }
 
-/* ---------------------------------------------------------
-   RECORD
---------------------------------------------------------- */
+/* =========================================================
+   INSPECT ENDPOINT
+========================================================= */
 
-async function handleRecord(req, res) {
+async function handleInspect(
+  req,
+  res
+) {
   if (!requireAuth(req, res)) {
     return;
   }
 
   try {
-    const body = await readBody(req);
+    const data =
+      await readBody(req);
 
-    const {
-      url,
-      maxSteps
-    } = body;
-
-    if (!validUrl(url)) {
-      return sendJson(res, 400, {
-        ok: false,
-        error:
-          "A valid http(s) URL is required."
-      });
-    }
-
-    console.log(
-      "[BRAG] RECORD START:",
-      url
-    );
-
-    const result = await runWorkflow(
-      url,
-      {
-        maxSteps
-      }
-    );
-
-    console.log(
-      "[BRAG] RECORD COMPLETE:",
-      url
-    );
-
-    return sendJson(res, 200, {
-      ok: true,
-      ...result
-    });
-  } catch (error) {
-    console.error(
-      "[BRAG] RECORD ERROR:",
-      error
-    );
-
-    return sendJson(res, 500, {
-      ok: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : String(error),
-      stage: "record",
-      timestamp:
-        new Date().toISOString()
-    });
-  }
-}
-
-/* ---------------------------------------------------------
-   INSPECT
---------------------------------------------------------- */
-
-async function handleInspect(req, res) {
-  if (!requireAuth(req, res)) {
-    return;
-  }
-
-  try {
-    const body = await readBody(req);
-
-    const { url } = body;
-
-    if (!validUrl(url)) {
-      return sendJson(res, 400, {
-        ok: false,
-        error:
-          "A valid http(s) URL is required."
-      });
+    if (!validUrl(data.url)) {
+      return sendJson(
+        res,
+        400,
+        {
+          ok: false,
+          error:
+            "A valid http(s) URL is required."
+        }
+      );
     }
 
     console.log(
       "[BRAG] INSPECT START:",
-      url
+      data.url
     );
 
     const inspection =
-      await inspectProduct(url);
+      await inspectProduct(
+        data.url
+      );
 
     console.log(
-      "[BRAG] INSPECTION COMPLETE:",
-      JSON.stringify({
-        title: inspection.title,
-        status: inspection.status,
-        headings:
-          inspection.headings.length,
-        buttons:
-          inspection.buttons.length,
-        links:
-          inspection.links.length,
-        consoleErrors:
-          inspection.consoleErrors.length,
-        pageErrors:
-          inspection.pageErrors.length
-      })
+      "[BRAG] INSPECTION COMPLETE"
     );
 
     console.log(
-      "[BRAG] BUILDING STORYBOARD"
+      "[BRAG] Building storyboard..."
     );
 
     const storyboard =
-      buildStoryboard(inspection);
+      buildStoryboard(
+        inspection
+      );
 
     console.log(
       "[BRAG] STORYBOARD COMPLETE"
     );
 
-    return sendJson(res, 200, {
-      ok: true,
-      inspection,
-      storyboard
-    });
+    return sendJson(
+      res,
+      200,
+      {
+        ok: true,
+        inspection,
+        storyboard
+      }
+    );
   } catch (error) {
     console.error(
       "[BRAG] INSPECT ERROR:",
       error
     );
 
-    return sendJson(res, 500, {
-      ok: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : String(error),
-      stage: "inspect",
-      timestamp:
-        new Date().toISOString()
-    });
+    return sendJson(
+      res,
+      500,
+      {
+        ok: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : String(error),
+        stage: "inspect",
+        timestamp:
+          new Date().toISOString()
+      }
+    );
   }
 }
 
-/* ---------------------------------------------------------
-   PRODUCE
---------------------------------------------------------- */
+/* =========================================================
+   RECORD ENDPOINT
+========================================================= */
 
-async function handleProduce(req, res) {
+async function handleRecord(
+  req,
+  res
+) {
   if (!requireAuth(req, res)) {
     return;
   }
 
   try {
-    const body = await readBody(req);
+    const data =
+      await readBody(req);
 
-    const {
-      url,
-      maxSteps,
-      description
-    } = body;
+    if (!validUrl(data.url)) {
+      return sendJson(
+        res,
+        400,
+        {
+          ok: false,
+          error:
+            "A valid http(s) URL is required."
+        }
+      );
+    }
 
-    if (!validUrl(url)) {
-      return sendJson(res, 400, {
+    console.log(
+      "[BRAG] RECORD START:",
+      data.url
+    );
+
+    const result =
+      await runWorkflow(
+        data.url,
+        {
+          maxSteps:
+            data.maxSteps
+        }
+      );
+
+    console.log(
+      "[BRAG] RECORD COMPLETE"
+    );
+
+    return sendJson(
+      res,
+      200,
+      {
+        ok: true,
+        ...result
+      }
+    );
+  } catch (error) {
+    console.error(
+      "[BRAG] RECORD ERROR:",
+      error
+    );
+
+    return sendJson(
+      res,
+      500,
+      {
         ok: false,
         error:
-          "A valid http(s) URL is required."
-      });
+          error instanceof Error
+            ? error.message
+            : String(error),
+        stage: "record",
+        timestamp:
+          new Date().toISOString()
+      }
+    );
+  }
+}
+
+/* =========================================================
+   PRODUCE ENDPOINT
+========================================================= */
+
+async function handleProduce(
+  req,
+  res
+) {
+  if (!requireAuth(req, res)) {
+    return;
+  }
+
+  try {
+    const data =
+      await readBody(req);
+
+    if (!validUrl(data.url)) {
+      return sendJson(
+        res,
+        400,
+        {
+          ok: false,
+          error:
+            "A valid http(s) URL is required."
+        }
+      );
+    }
+
+    const maxSteps =
+      data.maxSteps || 4;
+
+    const args = [
+      "brag.js",
+      data.url,
+      String(maxSteps)
+    ];
+
+    if (data.description) {
+      args.push(
+        String(data.description)
+      );
     }
 
     console.log(
       "[BRAG] PRODUCE START:",
-      url
+      data.url
     );
-
-    const args = [
-      "brag.js",
-      url,
-      String(maxSteps || 4)
-    ];
-
-    if (description) {
-      args.push(String(description));
-    }
 
     const child = spawn(
       process.execPath,
@@ -511,7 +553,7 @@ async function handleProduce(req, res) {
       "error",
       error => {
         console.error(
-          "[BRAG] PRODUCE SPAWN ERROR:",
+          "[BRAG] SPAWN ERROR:",
           error
         );
       }
@@ -520,178 +562,103 @@ async function handleProduce(req, res) {
     child.on(
       "close",
       code => {
-        try {
-          const qaPath =
-            path.join(
-              ROOT,
-              "output",
-              "qa",
-              "report.json"
-            );
+        let qa = null;
 
-          const qa =
-            fs.existsSync(qaPath)
-              ? JSON.parse(
-                  fs.readFileSync(
-                    qaPath,
-                    "utf8"
-                  )
+        const qaPath =
+          path.join(
+            ROOT,
+            "output",
+            "qa",
+            "report.json"
+          );
+
+        if (
+          fs.existsSync(
+            qaPath
+          )
+        ) {
+          try {
+            qa =
+              JSON.parse(
+                fs.readFileSync(
+                  qaPath,
+                  "utf8"
                 )
-              : null;
-
-          const possibleFiles = [
-            "output/final/product-demo-16x9.mp4",
-            "output/final/product-demo-9x16.mp4",
-            "output/final/product-demo-1x1.mp4"
-          ];
-
-          const finalFiles =
-            possibleFiles.filter(file =>
-              fs.existsSync(
-                path.join(ROOT, file)
-              )
+              );
+          } catch (error) {
+            console.error(
+              "[BRAG] QA READ ERROR:",
+              error
             );
-
-          const result = {
-            ok: code === 0,
-            exitCode: code,
-            qa,
-            final: finalFiles,
-            log: (
-              stdout +
-              "\n" +
-              stderr
-            ).slice(-12000)
-          };
-
-          console.log(
-            "[BRAG] PRODUCE COMPLETE:",
-            JSON.stringify({
-              ok: result.ok,
-              exitCode:
-                result.exitCode,
-              final:
-                result.final
-            })
-          );
-
-          return sendJson(
-            res,
-            code === 0
-              ? 200
-              : 500,
-            result
-          );
-        } catch (error) {
-          console.error(
-            "[BRAG] PRODUCE RESULT ERROR:",
-            error
-          );
-
-          return sendJson(
-            res,
-            500,
-            {
-              ok: false,
-              error:
-                error instanceof Error
-                  ? error.message
-                  : String(error),
-              stage: "produce"
-            }
-          );
+          }
         }
+
+        const files = [
+          "output/final/product-demo-16x9.mp4",
+          "output/final/product-demo-9x16.mp4",
+          "output/final/product-demo-1x1.mp4"
+        ];
+
+        const finalFiles =
+          files.filter(file =>
+            fs.existsSync(
+              path.join(
+                ROOT,
+                file
+              )
+            )
+          );
+
+        const result = {
+          ok: code === 0,
+          exitCode: code,
+          qa,
+          final: finalFiles,
+          log: (
+            stdout +
+            "\n" +
+            stderr
+          ).slice(-12000)
+        };
+
+        console.log(
+          "[BRAG] PRODUCE COMPLETE:",
+          result.ok
+        );
+
+        sendJson(
+          res,
+          code === 0
+            ? 200
+            : 500,
+          result
+        );
       }
     );
   } catch (error) {
     console.error(
-      "[BRAG] PRODUCE REQUEST ERROR:",
+      "[BRAG] PRODUCE ERROR:",
       error
     );
 
-    return sendJson(res, 500, {
-      ok: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : String(error),
-      stage: "produce"
-    });
+    return sendJson(
+      res,
+      500,
+      {
+        ok: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : String(error),
+        stage: "produce"
+      }
+    );
   }
 }
 
-/* ---------------------------------------------------------
-   STATIC FILES
---------------------------------------------------------- */
-
-function serveStatic(req, res) {
-  let requestPath =
-    req.url || "/";
-
-  if (requestPath === "/") {
-    requestPath = "/index.html";
-  }
-
-  const cleanPath =
-    requestPath.split("?")[0];
-
-  const relativePath =
-    path
-      .normalize(cleanPath)
-      .replace(/^(\.\.[/\\])+/, "");
-
-  const target =
-    path.join(
-      ROOT,
-      relativePath
-    );
-
-  if (
-    !target.startsWith(ROOT)
-  ) {
-    res.writeHead(
-      403,
-      corsHeaders()
-    );
-
-    return res.end(
-      "Forbidden"
-    );
-  }
-
-  if (
-    !fs.existsSync(target) ||
-    fs.statSync(target).isDirectory()
-  ) {
-    res.writeHead(
-      404,
-      corsHeaders()
-    );
-
-    return res.end(
-      "Not found"
-    );
-  }
-
-  const extension =
-    path.extname(target)
-      .toLowerCase();
-
-  res.writeHead(200, {
-    "Content-Type":
-      MIME_TYPES[extension] ||
-      "application/octet-stream",
-    ...corsHeaders()
-  });
-
-  return fs
-    .createReadStream(target)
-    .pipe(res);
-}
-
-/* ---------------------------------------------------------
+/* =========================================================
    SERVER
---------------------------------------------------------- */
+========================================================= */
 
 const server =
   http.createServer(
@@ -702,8 +669,13 @@ const server =
         req.url
       );
 
+      /*
+       * CORS PREFLIGHT
+       */
+
       if (
-        req.method === "OPTIONS"
+        req.method ===
+        "OPTIONS"
       ) {
         res.writeHead(
           204,
@@ -713,141 +685,148 @@ const server =
         return res.end();
       }
 
-      try {
-        /* HEALTH */
+      /*
+       * HEALTH
+       */
 
-        if (
-          req.method === "GET" &&
-          req.url === "/api/health"
-        ) {
-          return sendJson(
-            res,
-            200,
-            {
-              ok: true,
-              service:
-                "brag-engine",
-              version: "2.4",
-              capabilities: [
-                "inspect",
-                "record",
-                "produce"
-              ],
-              timestamp:
-                new Date().toISOString()
-            }
-          );
-        }
+      if (
+        req.method === "GET" &&
+        req.url ===
+          "/api/health"
+      ) {
+        return sendJson(
+          res,
+          200,
+          {
+            ok: true,
+            service:
+              "brag-engine",
+            version: "3.0",
+            capabilities: [
+              "inspect",
+              "record",
+              "produce"
+            ],
+            timestamp:
+              new Date().toISOString()
+          }
+        );
+      }
 
-        /* INSPECT */
+      /*
+       * INSPECT
+       */
 
-        if (
-          req.method === "POST" &&
-          req.url === "/api/inspect"
-        ) {
-          return await handleInspect(
-            req,
-            res
-          );
-        }
-
-        /* RECORD */
-
-        if (
-          req.method === "POST" &&
-          req.url === "/api/record"
-        ) {
-          return await handleRecord(
-            req,
-            res
-          );
-        }
-
-        /* PRODUCE */
-
-        if (
-          req.method === "POST" &&
-          req.url === "/api/produce"
-        ) {
-          return await handleProduce(
-            req,
-            res
-          );
-        }
-
-        /* STATIC */
-
-        return serveStatic(
+      if (
+        req.method === "POST" &&
+        req.url ===
+          "/api/inspect"
+      ) {
+        return handleInspect(
           req,
           res
         );
-      } catch (error) {
-        console.error(
-          "[BRAG] SERVER ERROR:",
-          error
-        );
-
-        if (!res.headersSent) {
-          return sendJson(
-            res,
-            500,
-            {
-              ok: false,
-              error:
-                error instanceof Error
-                  ? error.message
-                  : String(error),
-              stage: "server",
-              timestamp:
-                new Date().toISOString()
-            }
-          );
-        }
-
-        res.end();
       }
+
+      /*
+       * RECORD
+       */
+
+      if (
+        req.method === "POST" &&
+        req.url ===
+          "/api/record"
+      ) {
+        return handleRecord(
+          req,
+          res
+        );
+      }
+
+      /*
+       * PRODUCE
+       */
+
+      if (
+        req.method === "POST" &&
+        req.url ===
+          "/api/produce"
+      ) {
+        return handleProduce(
+          req,
+          res
+        );
+      }
+
+      /*
+       * UNKNOWN ROUTE
+       */
+
+      return sendJson(
+        res,
+        404,
+        {
+          ok: false,
+          error:
+            "BRAG endpoint not found",
+          path: req.url
+        }
+      );
     }
   );
 
-/* ---------------------------------------------------------
-   STARTUP
---------------------------------------------------------- */
+/* =========================================================
+   SERVER ERROR
+========================================================= */
 
 server.on(
   "error",
   error => {
     console.error(
-      "[BRAG] SERVER STARTUP ERROR:",
+      "[BRAG] SERVER ERROR:",
       error
     );
   }
 );
+
+/* =========================================================
+   START SERVER
+========================================================= */
 
 server.listen(
   PORT,
   "0.0.0.0",
   () => {
     console.log(
-      `[BRAG] Engine listening on port ${PORT}`
+      "========================================"
     );
 
     console.log(
-      `[BRAG] Environment: ${
-        process.env.NODE_ENV ||
-        "production"
-      }`
+      "BRAG ENGINE"
     );
 
     console.log(
-      `[BRAG] Auth: ${
+      "Status: RUNNING"
+    );
+
+    console.log(
+      `Port: ${PORT}`
+    );
+
+    console.log(
+      `Authentication: ${
         ENGINE_TOKEN
-          ? "enabled"
-          : "disabled"
+          ? "ENABLED"
+          : "DISABLED"
       }`
     );
 
     console.log(
-      `[BRAG] CORS origin: ${ALLOWED_ORIGIN}`
+      `CORS: ${ALLOWED_ORIGIN}`
+    );
+
+    console.log(
+      "========================================"
     );
   }
 );
