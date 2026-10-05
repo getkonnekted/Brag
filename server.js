@@ -7,6 +7,30 @@ const { buildStoryboard } = require("./director");
 const { runWorkflow } = require("./runner");
 
 const PORT = process.env.PORT || 4173;
+const ENGINE_TOKEN = process.env.BRAG_ENGINE_TOKEN || "";
+const ALLOWED_ORIGIN = process.env.BRAG_ALLOWED_ORIGIN || "*";
+
+function corsHeaders() {
+  return {
+    "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Vary": "Origin"
+  };
+}
+
+function authorized(req) {
+  if (!ENGINE_TOKEN) return true;
+  const value = req.headers.authorization || "";
+  return value === `Bearer ${ENGINE_TOKEN}`;
+}
+
+function requireAuth(req, res) {
+  if (authorized(req)) return true;
+  res.writeHead(401, { "Content-Type": "application/json", ...corsHeaders() });
+  res.end(JSON.stringify({ error: "Unauthorized. Configure the BRAG engine token." }));
+  return false;
+}
 const root = __dirname;
 const mime = { ".html":"text/html", ".js":"text/javascript", ".css":"text/css", ".json":"application/json", ".png":"image/png" };
 
@@ -32,13 +56,13 @@ async function inspect(url) {
 }
 
 const server = http.createServer(async (req,res) => {
-  if (req.method === "OPTIONS") { res.writeHead(204, {"Access-Control-Allow-Origin":"*", "Access-Control-Allow-Methods":"POST,OPTIONS", "Access-Control-Allow-Headers":"Content-Type"}); return res.end(); }
+  if (req.method === "OPTIONS") { res.writeHead(204, corsHeaders()); return res.end(); }
   try {
     if (req.method === "GET" && req.url === "/api/health") {
       res.writeHead(200, {
         "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-        "Cache-Control": "no-store"
+        "Cache-Control": "no-store",
+        ...corsHeaders()
       });
       return res.end(JSON.stringify({
         ok: true,
@@ -50,13 +74,14 @@ const server = http.createServer(async (req,res) => {
     }
 
     if (req.method === "POST" && req.url === "/api/record") {
+      if (!requireAuth(req, res)) return;
       let body=""; req.on("data", c => body += c);
       req.on("end", async () => {
         try {
           const { url, maxSteps } = JSON.parse(body || "{}");
           if (!url || !/^https?:\\/\\//i.test(url)) throw new Error("A valid http(s) URL is required.");
           const result = await runWorkflow(url, { maxSteps });
-          res.writeHead(200, {"Content-Type":"application/json","Access-Control-Allow-Origin":"*","Access-Control-Allow-Methods":"POST,OPTIONS","Access-Control-Allow-Headers":"Content-Type"});
+          res.writeHead(200, {"Content-Type":"application/json", ...corsHeaders()});
           res.end(JSON.stringify(result));
         } catch (e) {
           res.writeHead(400, {"Content-Type":"application/json"});
@@ -67,6 +92,7 @@ const server = http.createServer(async (req,res) => {
     }
 
     if (req.method === "POST" && req.url === "/api/produce") {
+      if (!requireAuth(req, res)) return;
       let body = ""; req.on("data", c => body += c);
       req.on("end", () => {
         try {
@@ -92,7 +118,7 @@ const server = http.createServer(async (req,res) => {
               ].filter(file => fs.existsSync(path.join(root, file))),
               log: (stdout + "\\n" + stderr).slice(-12000)
             };
-            res.writeHead(code === 0 ? 200 : 500, {"Content-Type":"application/json","Access-Control-Allow-Origin":"*"});
+            res.writeHead(code === 0 ? 200 : 500, {"Content-Type":"application/json", ...corsHeaders()});
             res.end(JSON.stringify(result));
           });
         } catch (e) {
@@ -104,6 +130,7 @@ const server = http.createServer(async (req,res) => {
     }
 
     if (req.method === "POST" && req.url === "/api/inspect") {
+      if (!requireAuth(req, res)) return;
       let body=""; req.on("data", c => body += c);
       req.on("end", async () => {
         try {
