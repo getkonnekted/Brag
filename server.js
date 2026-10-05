@@ -79,7 +79,7 @@ const server = http.createServer(async (req,res) => {
       req.on("end", async () => {
         try {
           const { url, maxSteps } = JSON.parse(body || "{}");
-          if (!url || !/^https?:\\/\\//i.test(url)) throw new Error("A valid http(s) URL is required.");
+          if (!url || !/^https?:\/\//i.test(url)) throw new Error("A valid http(s) URL is required.");
           const result = await runWorkflow(url, { maxSteps });
           res.writeHead(200, {"Content-Type":"application/json", ...corsHeaders()});
           res.end(JSON.stringify(result));
@@ -97,7 +97,7 @@ const server = http.createServer(async (req,res) => {
       req.on("end", () => {
         try {
           const { url, maxSteps, description } = JSON.parse(body || "{}");
-          if (!url || !/^https?:\\/\\//i.test(url)) throw new Error("A valid http(s) URL is required.");
+          if (!url || !/^https?:\/\//i.test(url)) throw new Error("A valid http(s) URL is required.");
           const args = ["brag.js", url, String(maxSteps || 4)];
           if (description) args.push(String(description));
           const child = spawn(process.execPath, args, { cwd: root, env: process.env });
@@ -135,7 +135,7 @@ const server = http.createServer(async (req,res) => {
       req.on("end", async () => {
         try {
           const { url } = JSON.parse(body || "{}");
-          if (!url || !/^https?:\\/\\//i.test(url)) throw new Error("A valid http(s) URL is required.");
+          if (!url || !/^https?:\/\//i.test(url)) throw new Error("A valid http(s) URL is required.");
           const inspection = await inspect(url);
           const storyboard = buildStoryboard(inspection);
           res.writeHead(200, {"Content-Type":"application/json","Access-Control-Allow-Origin":"*"});
