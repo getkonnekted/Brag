@@ -167,6 +167,33 @@ npm run qa
 
 Without Piper, BRAG can render silent video.
 
+## Personal worker
+
+BRAG is personal-first. The browser automation and video rendering stay on your machine so there is no cloud worker bill while the product is being proven.
+
+After the first setup:
+
+```bash
+npm install
+npx playwright install chromium
+npm run build
+npm run personal
+```
+
+`npm run personal` starts both the BRAG engine and the web control surface, waits for them to become healthy, and opens BRAG in your browser. You no longer need to start `npm run engine` separately.
+
+The architecture is intentionally portable:
+
+```
+Personal today
+Vercel UI / local UI → BRAG Personal Worker → Playwright + Chromium → FFmpeg → video
+
+Commercial later
+BRAG Web App → BRAG Cloud Worker → Playwright + Chromium → FFmpeg → video
+```
+
+The same engine can move from the personal worker to a dedicated cloud worker later. That keeps the early version free/open-source while avoiding a throwaway architecture.
+
 ## Run locally
 
 ```bash
