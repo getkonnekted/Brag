@@ -12,7 +12,9 @@ const initialScenes: Scene[] = [
   { label: "05", title: "Close", duration: "04s", status: "Waiting" }
 ];
 
-const ENGINE = "http://localhost:4173";
+const ENGINE = (process.env.NEXT_PUBLIC_BRAG_ENGINE_URL || "http://localhost:4173").replace(/\\/$/, "");
+
+type EngineStatus = "unknown" | "checking" | "connected" | "offline";
 
 export default function Home() {
   const [url, setUrl] = useState("");
@@ -22,20 +24,39 @@ export default function Home() {
   const [selected, setSelected] = useState(2);
   const [inspection, setInspection] = useState<any>(null);
   const [error, setError] = useState("");
+  const [engineStatus, setEngineStatus] = useState<EngineStatus>("unknown");
 
   const productName = useMemo(() => {
     try { return new URL(url).hostname.replace(/^www\./, "").split(".")[0]; }
     catch { return "your product"; }
   }, [url]);
 
+  async function checkEngine() {
+    setEngineStatus("checking");
+    try {
+      const response = await fetch(ENGINE + "/api/health", { cache: "no-store" });
+      if (!response.ok) throw new Error("Engine returned HTTP " + response.status);
+      setEngineStatus("connected");
+      return true;
+    } catch {
+      setEngineStatus("offline");
+      return false;
+    }
+  }
+
   async function engineRequest(path: string, body: object) {
+    setEngineStatus("checking");
     const response = await fetch(ENGINE + path, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body)
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || "BRAG local engine failed.");
+    if (!response.ok) {
+      setEngineStatus("offline");
+      throw new Error(data.error || "BRAG engine failed.");
+    }
+    setEngineStatus("connected");
     return data;
   }
 
@@ -43,6 +64,8 @@ export default function Home() {
     setStage("inspecting");
     setError("");
     try {
+      const available = await checkEngine();
+      if (!available) throw new Error("BRAG engine is not reachable. Start it with npm run engine, or set NEXT_PUBLIC_BRAG_ENGINE_URL to a reachable engine URL.");
       const data = await engineRequest("/api/inspect", { url });
       setInspection(data.inspection);
       const intelligence = data.storyboard?.intelligence;
@@ -86,13 +109,14 @@ export default function Home() {
     }
   }
 
-  const connected = Boolean(inspection);
+  const connected = engineStatus === "connected";
+  const engineLabel = engineStatus === "connected" ? "ENGINE CONNECTED" : engineStatus === "checking" ? "ENGINE CHECKING" : engineStatus === "offline" ? "ENGINE OFFLINE" : "LOCAL ENGINE";
 
   return (
     <main className="app-shell">
       <header className="topbar">
         <a className="brand" href="#"><span className="brand-mark">B</span><span>BRAG</span></a>
-        <nav><span>DIRECTOR</span><span>STUDIO</span><span className="engine-dot">● {connected ? "ENGINE CONNECTED" : "LOCAL ENGINE"}</span></nav>
+        <nav><span>DIRECTOR</span><span>STUDIO</span><span className="engine-dot">● {engineLabel}</span></nav>
       </header>
 
       <section className="hero">
@@ -113,8 +137,8 @@ export default function Home() {
           <button className="primary" onClick={buildStory} disabled={!url || stage === "inspecting"}>
             {stage === "inspecting" ? "Inspecting product..." : "Build demo story"}
           </button>
-          <div className="engine-note"><span className="live-dot"/> The browser UI talks to your local BRAG engine on port 4173. Vercel hosts only this control surface.</div>
-          {error && <div className="engine-error">{error}<br/><small>Start the engine with <code>npm run engine</code>.</small></div>}
+          <div className="engine-note"><span className="live-dot"/> Engine: <code>{ENGINE}</code>. Vercel hosts the control surface; Playwright, FFmpeg, capture and rendering run in the BRAG engine.</div>
+          {error && <div className="engine-error">{error}<br/><small>Local: <code>npm run engine</code>. Remote: set <code>NEXT_PUBLIC_BRAG_ENGINE_URL</code> in Vercel.</small></div>}
         </aside>
 
         <section className="director-panel">
