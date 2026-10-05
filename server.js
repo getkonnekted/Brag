@@ -56,6 +56,9 @@ async function inspect(url) {
 }
 
 const server = http.createServer(async (req,res) => {
+  console.log("BRAG REQUEST:", req.method,
+  JSON.stringify(req.url));
+  
   if (req.method === "OPTIONS") { res.writeHead(204, corsHeaders()); return res.end(); }
   try {
     if (req.method === "GET" && req.url === "/api/health") {
