@@ -1,8 +1,8 @@
 {
-  "name": "brag",
-  "version": "2.3.1",
+  "name": "demo",
+  "version": "2.4.0",
   "private": true,
-  "description": "BRAG product-to-video demo engine",
+  "description": "demo product-to-video storytelling engine",
   "scripts": {
     "start": "next start",
     "capture": "node capture.js",
