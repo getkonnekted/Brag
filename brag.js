@@ -50,12 +50,13 @@ function run(
 }
 
 function ensureCommand(
-  command
+  command,
+  args = ["--version"]
 ) {
   try {
     execFileSync(
       command,
-      ["-version"],
+      args,
       {
         stdio:
           "ignore"
@@ -80,14 +81,16 @@ function checkEnvironment() {
     [
       "FFmpeg",
       ensureCommand(
-        "ffmpeg"
+        "ffmpeg",
+        ["-version"]
       )
     ],
 
     [
       "espeak-ng",
       ensureCommand(
-        "espeak-ng"
+        "espeak-ng",
+        ["--version"]
       )
     ],
 
