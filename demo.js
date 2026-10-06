@@ -1,8 +1,16 @@
 const fs = require("fs");
 const path = require("path");
-const { runWorkflow } = require("./runner");
-const { buildNarrative } = require("./director");
-const { applyInteractionToScenes } = require("./cinematography");
+
+const { runWorkflow } =
+  require("./runner");
+
+const {
+  buildNarrative
+} = require("./director");
+
+const {
+  applyInteractionToScenes
+} = require("./cinematography");
 
 function clean(value) {
   return String(value || "")
@@ -25,364 +33,342 @@ function productName(url, title) {
   }
 }
 
-function validFootagePath(recordingDir, footage) {
-  if (!footage) {
-    return false;
-  }
+function recordingDir() {
+  return path.join(
+    process.cwd(),
+    "output",
+    "recording"
+  );
+}
 
-  return fs.existsSync(
-    path.join(recordingDir, footage)
+function validFile(file) {
+  if (!file) return false;
+
+  const fullPath =
+    path.join(
+      recordingDir(),
+      file
+    );
+
+  return (
+    fs.existsSync(fullPath) &&
+    fs.statSync(fullPath).size >
+      0
   );
 }
 
 function capturedStates(manifest) {
-  return (manifest.steps || []).filter(
+  return (
+    manifest.steps || []
+  ).filter(
     (step) =>
-      step.type === "state-captured" &&
+      step.type ===
+        "state-captured" &&
       step.screenshot
   );
 }
 
-function firstScreenshot(manifest) {
-  const step = (manifest.steps || []).find(
-    (item) =>
-      item.screenshot &&
-      validFootagePath(
-        path.join(
-          process.cwd(),
-          "output",
-          "recording"
-        ),
-        item.screenshot
-      )
+function buildNarration(
+  name,
+  description,
+  fallback
+) {
+  return (
+    clean(fallback) ||
+    clean(description) ||
+    `This is ${name}, shown working in the real product.`
   );
-
-  return step?.screenshot || null;
 }
 
 function buildDemoPackage(
   manifest,
   description = ""
 ) {
-  const recordingDir = path.join(
-    process.cwd(),
-    "output",
-    "recording"
-  );
-
   const states =
-    capturedStates(manifest);
-
-  const narrative = buildNarrative(
-    manifest.director || {},
-    states
-  );
-
-  const name = productName(
-    manifest.source,
-    states[0]?.title ||
-      manifest.steps?.find(
-        (step) => step.title
-      )?.title
-  );
+    capturedStates(
+      manifest
+    );
 
   const realFootage =
-    manifest.realFootage?.file &&
-    validFootagePath(
-      recordingDir,
-      manifest.realFootage.file
-    )
-      ? manifest.realFootage.file
-      : null;
+    manifest.realFootage?.file;
 
-  const openingScreenshot =
-    firstScreenshot(manifest);
+  if (!validFile(realFootage)) {
+    throw new Error(
+      "BRAG did not produce a valid real browser recording. Screenshots are reference evidence only."
+    );
+  }
 
-  const first = states[0] || null;
-  const last =
-    states[states.length - 1] ||
-    null;
+  if (!states.length) {
+    throw new Error(
+      "BRAG captured no usable product states."
+    );
+  }
+
+  const narrative =
+    buildNarrative(
+      manifest.director ||
+        {},
+      states
+    );
+
+  const name =
+    productName(
+      manifest.source,
+      states[0]?.title
+    );
 
   const scenes = [];
 
   /*
-   * HOOK
+   * IMPORTANT:
    *
-   * Use an actual captured frame whenever
-   * available. Never invent a screenshot path.
-   */
-  if (openingScreenshot) {
-    scenes.push({
-      id: "hook",
-
-      duration: 4,
-
-      footage:
-        openingScreenshot,
-
-      footageType:
-        "captured-screenshot",
-
-      narration:
-        narrative.scenes[0]?.text ||
-        (description
-          ? clean(description).slice(
-              0,
-              220
-            )
-          : `${name} is built to solve a specific problem without adding unnecessary complexity.`),
-
-      purpose:
-        "Establish the problem and promise.",
-
-      motion: {
-        type: "slow-zoom",
-        from: 1,
-        to: 1.06
-      }
-    });
-  }
-
-  /*
-   * PRODUCT
+   * Every scene uses the real browser
+   * recording as its primary visual source.
    *
-   * Prefer the real Playwright browser
-   * recording because this is the strongest
-   * proof that BRAG captured the actual product.
+   * Screenshots are retained only as
+   * evidence/reference metadata.
    */
-  if (realFootage) {
-    scenes.push({
-      id: "product",
 
-      duration: 5,
+  scenes.push({
+    id:
+      "hook",
 
-      footage:
-        realFootage,
+    duration:
+      4,
 
-      footageType:
-        "real-browser-recording",
+    footage:
+      realFootage,
 
-      narration:
-        narrative.scenes[1]?.text ||
-        `Meet ${name}. This is the product in its real environment, not a mockup.`,
+    footageType:
+      "real-browser-recording",
 
-      purpose:
-        "Orient the viewer inside the actual product.",
+    videoStart:
+      0,
 
-      motion: {
-        type: "static",
-        from: 1,
-        to: 1
-      }
-    });
-  } else if (first?.screenshot) {
-    scenes.push({
-      id: "product",
+    videoEnd:
+      4,
 
-      duration: 5,
+    narration:
+      buildNarration(
+        name,
+        description,
+        narrative.scenes?.[0]
+          ?.text ||
+          narrative.scenes?.[0]
+      ),
 
-      footage:
-        first.screenshot,
+    purpose:
+      "Establish the real product."
+  });
 
-      footageType:
-        "state-screenshot",
-
-      narration:
-        narrative.scenes[1]?.text ||
-        `Meet ${name}. This is the product in its real environment, not a mockup.`,
-
-      purpose:
-        "Orient the viewer inside the actual product.",
-
-      cursor:
-        first.cursor || null,
-
-      motion: {
-        type: "static",
-        from: 1,
-        to: 1
-      }
-    });
-  }
-
-  /*
-   * WORKFLOW
-   *
-   * Every workflow scene must correspond
-   * to a real state captured by runner.js.
-   */
   states
     .slice(0, 3)
-    .forEach((state, index) => {
-      scenes.push({
-        id:
-          `workflow-${index + 1}`,
+    .forEach(
+      (state, index) => {
+        const recordingMs =
+          Number(
+            state.recordingMs
+          ) || 0;
 
-        duration: 7,
+        const start =
+          Math.max(
+            0,
+            recordingMs /
+              1000 -
+              2
+          );
 
-        footage:
-          state.screenshot,
+        const end =
+          Math.max(
+            start + 2,
+            recordingMs /
+              1000 +
+              1
+          );
 
-        footageType:
-          "state-screenshot",
+        const action =
+          clean(
+            state.action
+              ?.text
+          );
 
-        narration:
-          state.headings?.length
-            ? `From here, the important path is ${state.headings
-                .slice(0, 2)
-                .join(" and ")}.`
-            : state.action?.text
-              ? `The product responds to ${state.action.text}.`
-              : "This is an important step in the user workflow.",
+        scenes.push({
+          id:
+            `workflow-${index + 1}`,
 
-        purpose:
-          "Show the real product doing the work.",
+          duration:
+            6,
 
-        cursor:
-          state.cursor || null,
+          footage:
+            realFootage,
 
-        motion: {
-          type:
-            index % 2
-              ? "slow-zoom"
-              : "push-left",
+          footageType:
+            "real-browser-recording",
 
-          from: 1,
+          videoStart:
+            start,
 
-          to: 1.05
-        }
-      });
-    });
+          videoEnd:
+            end,
 
-  /*
-   * RESULT
-   *
-   * Only create a result scene when
-   * we have an actual captured state.
-   *
-   * This prevents the old bug where the
-   * renderer received a scene with null
-   * footage.
-   */
-  if (last?.screenshot) {
-    const resultEvidence =
-      last.evaluation?.proof
-        ? "The captured state shows evidence of the intended outcome."
-        : last.headings?.length
-          ? `The captured state reveals ${last.headings
-              .slice(0, 2)
-              .join(" and ")}.`
-          : "The captured state shows the product after the core interaction.";
+          narration:
+            action
+              ? `${name} responds as the user ${action.toLowerCase()}.`
+              : `This is the next useful step inside ${name}.`,
 
-    scenes.push({
-      id: "result",
+          purpose:
+            "Show real product interaction.",
 
-      duration: 6,
+          cursor:
+            state.cursor ||
+            null,
 
-      footage:
-        last.screenshot,
+          interaction: {
+            focus:
+              state.cursor ||
+              null,
 
-      footageType:
-        "state-screenshot",
+            effects: [
+              "focus-hold",
+              "click-ring"
+            ]
+          },
 
-      narration:
-        narrative.scenes[3]?.text ||
-        resultEvidence,
+          sourceState:
+            state.step,
 
-      purpose:
-        "Make the value visible.",
-
-      cursor:
-        last.cursor || null,
-
-      motion: {
-        type: "slow-zoom",
-        from: 1.02,
-        to: 1.07
+          sourceScreenshot:
+            state.screenshot
+        });
       }
-    });
-  }
-
-  /*
-   * CLOSE
-   *
-   * A close can safely reuse the final
-   * captured state. It must never point to
-   * missing footage.
-   */
-  if (last?.screenshot) {
-    const finalAction =
-      manifest.director
-        ?.strongestAction;
-
-    scenes.push({
-      id: "close",
-
-      duration: 4,
-
-      footage:
-        last.screenshot,
-
-      footageType:
-        "state-screenshot",
-
-      narration: finalAction
-        ? `That's ${name}. The product demonstrates its value through ${finalAction}.`
-        : `That's ${name}. Show the product, show the workflow, then let the result speak for itself.`,
-
-      purpose:
-        "Close with the strongest captured product evidence.",
-
-      cursor:
-        last.cursor || null,
-
-      motion: {
-        type: "push-right",
-        from: 1.03,
-        to: 1.08
-      }
-    });
-  }
-
-  /*
-   * Fail early if the capture produced no
-   * usable evidence. This is much better than
-   * sending an invalid package to the renderer.
-   */
-  if (scenes.length === 0) {
-    throw new Error(
-      "BRAG captured no usable footage or screenshots. The demo package cannot be created."
-    );
-  }
-
-  /*
-   * Verify every scene has a real file.
-   */
-  const invalidScenes =
-    scenes.filter(
-      (scene) =>
-        !validFootagePath(
-          recordingDir,
-          scene.footage
-        )
     );
 
-  if (invalidScenes.length) {
-    const ids =
-      invalidScenes
-        .map((scene) => scene.id)
-        .join(", ");
+  const last =
+    states[
+      states.length - 1
+    ];
 
-    throw new Error(
-      `Demo package contains scenes without valid footage: ${ids}`
-    );
-  }
+  const lastMs =
+    Number(
+      last.recordingMs
+    ) || 0;
 
-  /*
-   * Apply cinematography only after the
-   * evidence-backed scene list is complete.
-   */
-  let finalScenes = scenes;
+  scenes.push({
+    id:
+      "result",
+
+    duration:
+      5,
+
+    footage:
+      realFootage,
+
+    footageType:
+      "real-browser-recording",
+
+    videoStart:
+      Math.max(
+        0,
+        lastMs /
+          1000 -
+          3
+      ),
+
+    videoEnd:
+      Math.max(
+        3,
+        lastMs /
+          1000 +
+          1
+      ),
+
+    narration:
+      narrative.scenes?.[3]
+        ?.text ||
+      "The useful result is visible in the real product.",
+
+    purpose:
+      "Show the useful result.",
+
+    cursor:
+      last.cursor ||
+      null,
+
+    interaction: {
+      focus:
+        last.cursor ||
+        null,
+
+      effects: [
+        "focus-hold"
+      ]
+    },
+
+    sourceState:
+      last.step,
+
+    sourceScreenshot:
+      last.screenshot
+  });
+
+  scenes.push({
+    id:
+      "close",
+
+    duration:
+      4,
+
+    footage:
+      realFootage,
+
+    footageType:
+      "real-browser-recording",
+
+    videoStart:
+      Math.max(
+        0,
+        lastMs /
+          1000 -
+          3
+      ),
+
+    videoEnd:
+      Math.max(
+        3,
+        lastMs /
+          1000 +
+          1
+      ),
+
+    narration:
+      `That's ${name}. Real product, real workflow, real result.`,
+
+    purpose:
+      "Close on the strongest real product evidence.",
+
+    cursor:
+      last.cursor ||
+      null,
+
+    interaction: {
+      focus:
+        last.cursor ||
+        null,
+
+      effects: [
+        "focus-hold"
+      ]
+    },
+
+    sourceState:
+      last.step,
+
+    sourceScreenshot:
+      last.screenshot
+  });
+
+  let finalScenes =
+    scenes;
 
   try {
     const edited =
@@ -392,43 +378,36 @@ function buildDemoPackage(
       );
 
     if (
-      Array.isArray(edited)
+      Array.isArray(
+        edited
+      )
     ) {
-      finalScenes = edited;
+      finalScenes =
+        edited;
     }
   } catch (error) {
-    /*
-     * Cinematography is an enhancement.
-     * It must never destroy an otherwise
-     * valid evidence-backed package.
-     */
     console.warn(
       `Cinematography pass skipped: ${error.message}`
     );
   }
 
-  /*
-   * Revalidate after cinematography.
-   */
-  const invalidFinalScenes =
+  const invalid =
     finalScenes.filter(
       (scene) =>
-        !validFootagePath(
-          recordingDir,
+        !validFile(
           scene.footage
         )
     );
 
-  if (
-    invalidFinalScenes.length
-  ) {
-    const ids =
-      invalidFinalScenes
-        .map((scene) => scene.id)
-        .join(", ");
-
+  if (invalid.length) {
     throw new Error(
-      `Cinematography produced scenes without valid footage: ${ids}`
+      "Invalid scene footage: " +
+        invalid
+          .map(
+            (scene) =>
+              scene.id
+          )
+          .join(", ")
     );
   }
 
@@ -436,14 +415,19 @@ function buildDemoPackage(
     finalScenes.reduce(
       (sum, scene) =>
         sum +
-        Number(scene.duration || 0),
+        Number(
+          scene.duration ||
+            0
+        ),
       0
     );
 
   return {
-    version: "2.0",
+    version:
+      "3.0",
 
-    product: name,
+    product:
+      name,
 
     source:
       manifest.source,
@@ -463,8 +447,7 @@ function buildDemoPackage(
       finalScenes,
 
     realFootage:
-      manifest.realFootage ||
-      null,
+      manifest.realFootage,
 
     shotPlan:
       manifest.shotPlan ||
@@ -475,8 +458,8 @@ function buildDemoPackage(
     footageDirectory:
       "output/recording",
 
-    next:
-      "Feed this evidence-backed edit decision list into the renderer and TTS layer.",
+    sourcePolicy:
+      "Real browser recording is the primary visual source. Screenshots are evidence/reference only.",
 
     formats: [
       "16:9",
@@ -510,7 +493,8 @@ async function main() {
   }
 
   const maxSteps =
-    process.argv[3] || 4;
+    process.argv[3] ||
+    4;
 
   const description =
     process.argv
@@ -566,10 +550,13 @@ async function main() {
   );
 }
 
-main().catch((error) => {
-  console.error(
-    error.stack || error
-  );
+main().catch(
+  (error) => {
+    console.error(
+      error.stack ||
+        error
+    );
 
-  process.exit(1);
-});
+    process.exit(1);
+  }
+);
