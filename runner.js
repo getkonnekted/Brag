@@ -8,39 +8,68 @@ const {
 } = require("./director");
 
 const SAFE =
-  /^(start|get started|try|try it|demo|explore|learn more|discover|play|begin|launch|view demo|see demo|continue|next|open|view|details|dashboard|features|how it works)$/i;
+  /^(start|get started|try|try it|demo|explore|learn more|discover|play|begin|launch|view demo|see demo|continue|next|view|details|dashboard|features|how it works|create|new|draw|diagram|design|edit)$/i;
 
 const BLOCKED =
-  /(delete|remove|cancel|logout|log out|pay|purchase|buy|subscribe|checkout|transfer|withdraw|send money|confirm payment|publish|post|deploy|password|reset password|verify|sign in|signin|login|log in|upload|download)/i;
+  /(delete|remove|cancel|logout|log out|pay|purchase|buy|subscribe|checkout|transfer|withdraw|send money|confirm payment|publish|post|deploy|password|reset password|verify|sign in|signin|login|log in|upload|download|export|import|save|settings|help|keyboard|shortcut)/i;
 
-function clean(v) {
-  return (v || "")
+function clean(value) {
+  return String(value || "")
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 140);
 }
 
+function isCreationProduct(intelligence) {
+  if (!intelligence) {
+    return false;
+  }
+
+  if (intelligence.archetype === "creation-workflow") {
+    return true;
+  }
+
+  const corpus = [
+    intelligence.product,
+    intelligence.promise,
+    ...(intelligence.evidence?.headings || []),
+    ...(intelligence.evidence?.actions || [])
+  ].join(" ");
+
+  return /\b(excalidraw|whiteboard|canvas|diagram|drawing|draw|design|visualize|mindmap|mind map)\b/i.test(
+    corpus
+  );
+}
+
 async function waitForStability(page) {
   await page
-    .waitForLoadState("domcontentloaded", { timeout: 12000 })
+    .waitForLoadState("domcontentloaded", {
+      timeout: 12000
+    })
     .catch(() => {});
 
   await page
-    .waitForLoadState("networkidle", { timeout: 5000 })
+    .waitForLoadState("networkidle", {
+      timeout: 5000
+    })
     .catch(() => {});
 
   await page.waitForTimeout(350);
 }
 
 function isSafeHref(href, origin) {
-  if (!href) return false;
+  if (!href) {
+    return false;
+  }
 
   try {
-    const u = new URL(href, origin);
+    const url = new URL(href, origin);
 
     return (
-      u.origin === origin &&
-      !["mailto:", "tel:", "javascript:"].includes(u.protocol)
+      url.origin === origin &&
+      !["mailto:", "tel:", "javascript:"].includes(
+        url.protocol
+      )
     );
   } catch {
     return false;
@@ -49,24 +78,22 @@ function isSafeHref(href, origin) {
 
 async function visibleActions(page) {
   return page
-    .locator("a,button,[role=button],input[type=submit]")
-    .evaluateAll((els) =>
-      els
+    .locator(
+      "a,button,[role=button],input[type=submit]"
+    )
+    .evaluateAll((elements) =>
+      elements
         .slice(0, 100)
-        .map((el, index) => {
-          const r = el.getBoundingClientRect();
+        .map((element, index) => {
+          const rect =
+            element.getBoundingClientRect();
 
-          /*
-           * IMPORTANT:
-           * This callback executes inside the browser.
-           * It cannot access the Node.js clean() function.
-           */
           const rawText =
-            el.innerText ||
-            el.value ||
-            el.getAttribute("aria-label") ||
-            el.getAttribute("title") ||
-            el.href ||
+            element.innerText ||
+            element.value ||
+            element.getAttribute("aria-label") ||
+            element.getAttribute("title") ||
+            element.href ||
             "";
 
           const text = String(rawText)
@@ -76,36 +103,62 @@ async function visibleActions(page) {
 
           return {
             index,
-            tag: el.tagName.toLowerCase(),
+            tag: element.tagName.toLowerCase(),
             text,
-            href: el.tagName === "A" ? el.href : null,
-            type: el.getAttribute("type"),
-            visible: r.width > 0 && r.height > 0,
-            x: Math.round(r.x),
-            y: Math.round(r.y),
-            width: Math.round(r.width),
-            height: Math.round(r.height)
+            href:
+              element.tagName === "A"
+                ? element.href
+                : null,
+            type:
+              element.getAttribute("type"),
+            visible:
+              rect.width > 0 &&
+              rect.height > 0,
+            x: Math.round(rect.x),
+            y: Math.round(rect.y),
+            width: Math.round(rect.width),
+            height: Math.round(rect.height)
           };
         })
-        .filter((x) => x.visible && x.text)
+        .filter(
+          (action) =>
+            action.visible &&
+            action.text
+        )
     );
 }
 
 function directorScore(action, intelligence) {
-  if (BLOCKED.test(action.text)) {
+  const text = action.text;
+
+  if (!text) {
     return -1000;
   }
 
-  const text = action.text;
+  if (BLOCKED.test(text)) {
+    return -1000;
+  }
 
   if (action.type === "submit") {
     return -800;
   }
 
-  const priority =
-    /get started|try|demo|start|launch|play|continue|next|explore|discover|create|order|book/i;
+  if (
+    action.tag === "a" &&
+    !isSafeHref(
+      action.href,
+      intelligence.origin
+    )
+  ) {
+    return -900;
+  }
 
-  let score = SAFE.test(text) ? 50 : 0;
+  const priority =
+    /get started|try|demo|start|launch|play|continue|next|explore|discover|create|new|draw|diagram|design|edit/i;
+
+  let score = SAFE.test(text)
+    ? 50
+    : 0;
 
   if (priority.test(text)) {
     score += 30;
@@ -113,9 +166,20 @@ function directorScore(action, intelligence) {
 
   if (
     intelligence?.strongestAction &&
-    text.toLowerCase() === intelligence.strongestAction.toLowerCase()
+    text.toLowerCase() ===
+      intelligence.strongestAction.toLowerCase()
   ) {
     score += 100;
+  }
+
+  if (
+    intelligence?.archetype ===
+      "creation-workflow" &&
+    /create|new|start|try|draw|diagram|design|edit/i.test(
+      text
+    )
+  ) {
+    score += 40;
   }
 
   if (
@@ -126,24 +190,11 @@ function directorScore(action, intelligence) {
   }
 
   if (
-    intelligence?.archetype === "commerce" &&
+    intelligence?.archetype ===
+      "commerce" &&
     /order|explore|start/i.test(text)
   ) {
     score += 25;
-  }
-
-  if (
-    intelligence?.archetype === "creation-workflow" &&
-    /create|start|try/i.test(text)
-  ) {
-    score += 25;
-  }
-
-  if (
-    action.tag === "a" &&
-    !isSafeHref(action.href, intelligence.origin)
-  ) {
-    return -900;
   }
 
   return score;
@@ -156,7 +207,9 @@ async function inspectForDirector(page, url) {
     title: await page.title(),
 
     description: await page
-      .locator('meta[name="description"]')
+      .locator(
+        'meta[name="description"]'
+      )
       .getAttribute("content")
       .catch(() => null),
 
@@ -164,22 +217,23 @@ async function inspectForDirector(page, url) {
       .locator("h1,h2,h3")
       .allTextContents(),
 
-    /*
-     * IMPORTANT:
-     * clean() cannot be called inside evaluateAll().
-     * The normalization is performed directly inside
-     * the browser callback instead.
-     */
     buttons: await page
-      .locator("button,[role=button],input[type=submit]")
-      .evaluateAll((els) =>
-        els
+      .locator(
+        "button,[role=button],input[type=submit]"
+      )
+      .evaluateAll((elements) =>
+        elements
           .slice(0, 30)
-          .map((el) => {
+          .map((element) => {
             const rawText =
-              el.innerText ||
-              el.value ||
-              el.getAttribute("aria-label") ||
+              element.innerText ||
+              element.value ||
+              element.getAttribute(
+                "aria-label"
+              ) ||
+              element.getAttribute(
+                "title"
+              ) ||
               "";
 
             const text = String(rawText)
@@ -187,137 +241,509 @@ async function inspectForDirector(page, url) {
               .trim()
               .slice(0, 140);
 
-            return { text };
-          })
-          .filter((x) => x.text)
-      ),
-
-    /*
-     * Same fix for links.
-     */
-    links: await page
-      .locator("a")
-      .evaluateAll((as) =>
-        as
-          .slice(0, 40)
-          .map((a) => {
-            const text = String(a.innerText || "")
-              .replace(/\s+/g, " ")
-              .trim()
-              .slice(0, 140);
-
             return {
-              text,
-              href: a.href
+              text
             };
           })
-          .filter((x) => x.text || x.href)
+          .filter(
+            (item) => item.text
+          )
+      ),
+
+    links: await page
+      .locator("a")
+      .evaluateAll((elements) =>
+        elements
+          .slice(0, 40)
+          .map((element) => ({
+            text: String(
+              element.innerText || ""
+            )
+              .replace(/\s+/g, " ")
+              .trim()
+              .slice(0, 140),
+
+            href: element.href
+          }))
+          .filter(
+            (item) =>
+              item.text ||
+              item.href
+          )
       )
   };
 }
 
-async function runWorkflow(url, options = {}) {
+async function findCanvas(page) {
+  const selectors = [
+    "canvas",
+    ".excalidraw__canvas",
+    "[data-testid*='canvas']",
+    "svg"
+  ];
+
+  let best = null;
+
+  for (const selector of selectors) {
+    const candidates = await page
+      .locator(selector)
+      .evaluateAll((elements) =>
+        elements
+          .map((element, index) => {
+            const rect =
+              element.getBoundingClientRect();
+
+            return {
+              index,
+              tag:
+                element.tagName.toLowerCase(),
+              className:
+                element.className?.baseVal ||
+                element.className ||
+                "",
+              x: rect.x,
+              y: rect.y,
+              width: rect.width,
+              height: rect.height,
+              area:
+                rect.width *
+                rect.height
+            };
+          })
+          .filter(
+            (item) =>
+              item.width >= 250 &&
+              item.height >= 200
+          )
+      )
+      .catch(() => []);
+
+    for (const candidate of candidates) {
+      if (
+        !best ||
+        candidate.area > best.area
+      ) {
+        best = {
+          ...candidate,
+          selector
+        };
+      }
+    }
+  }
+
+  if (!best) {
+    return null;
+  }
+
+  return best;
+}
+
+async function performCanvasCreation(
+  page,
+  intelligence,
+  creationStep
+) {
+  if (!isCreationProduct(intelligence)) {
+    return {
+      success: false,
+      reason:
+        "Current product is not classified as a creation product."
+    };
+  }
+
+  const canvas = await findCanvas(page);
+
+  if (!canvas) {
+    return {
+      success: false,
+      reason:
+        "No sufficiently large canvas or SVG surface was found."
+    };
+  }
+
+  const locator = page.locator(
+    canvas.selector
+  );
+
+  const box =
+    await locator
+      .nth(canvas.index)
+      .boundingBox()
+      .catch(() => null);
+
+  if (!box) {
+    return {
+      success: false,
+      reason:
+        "Canvas was found but its bounding box could not be read."
+    };
+  }
+
+  const margin = 80;
+
+  const usableLeft =
+    box.x + margin;
+
+  const usableTop =
+    box.y + margin;
+
+  const usableRight =
+    box.x +
+    box.width -
+    margin;
+
+  const usableBottom =
+    box.y +
+    box.height -
+    margin;
+
+  if (
+    usableRight <= usableLeft ||
+    usableBottom <= usableTop
+  ) {
+    return {
+      success: false,
+      reason:
+        "Canvas usable area is too small."
+    };
+  }
+
+  const centerX =
+    (usableLeft + usableRight) /
+    2;
+
+  const centerY =
+    (usableTop + usableBottom) /
+    2;
+
+  const shapeWidth = Math.min(
+    260,
+    (usableRight - usableLeft) *
+      0.32
+  );
+
+  const shapeHeight = Math.min(
+    170,
+    (usableBottom - usableTop) *
+      0.28
+  );
+
+  let startX;
+  let startY;
+  let endX;
+  let endY;
+
+  if (creationStep === 1) {
+    startX =
+      centerX -
+      shapeWidth / 2;
+
+    startY =
+      centerY -
+      shapeHeight / 2;
+
+    endX =
+      centerX +
+      shapeWidth / 2;
+
+    endY =
+      centerY +
+      shapeHeight / 2;
+  } else if (creationStep === 2) {
+    startX =
+      centerX -
+      shapeWidth / 2;
+
+    startY =
+      centerY +
+      shapeHeight * 0.75;
+
+    endX =
+      centerX +
+      shapeWidth / 2;
+
+    endY =
+      centerY +
+      shapeHeight * 0.75;
+  } else {
+    startX =
+      centerX -
+      shapeWidth * 0.8;
+
+    startY =
+      centerY -
+      shapeHeight * 0.9;
+
+    endX =
+      centerX +
+      shapeWidth * 0.8;
+
+    endY =
+      centerY +
+      shapeHeight * 0.9;
+  }
+
+  await page.mouse.move(
+    startX,
+    startY
+  );
+
+  await page.mouse.down();
+
+  await page.mouse.move(
+    endX,
+    endY,
+    {
+      steps: 12
+    }
+  );
+
+  await page.mouse.up();
+
+  await page.waitForTimeout(500);
+
+  return {
+    success: true,
+
+    type: "canvas-draw",
+
+    action:
+      creationStep === 1
+        ? "Draw a primary shape"
+        : creationStep === 2
+          ? "Add a second canvas element"
+          : "Add a connecting visual",
+
+    canvas: {
+      selector: canvas.selector,
+      tag: canvas.tag,
+      x: Math.round(box.x),
+      y: Math.round(box.y),
+      width: Math.round(box.width),
+      height: Math.round(box.height)
+    },
+
+    coordinates: {
+      startX: Math.round(startX),
+      startY: Math.round(startY),
+      endX: Math.round(endX),
+      endY: Math.round(endY)
+    }
+  };
+}
+
+async function captureState(
+  page,
+  outputDir,
+  step,
+  shot,
+  cursor = null
+) {
+  const screenshot =
+    `step-${String(step).padStart(
+      2,
+      "0"
+    )}-after.png`;
+
+  await page.screenshot({
+    path: path.join(
+      outputDir,
+      screenshot
+    ),
+    fullPage: false
+  });
+
+  const headings =
+    await page
+      .locator("h1,h2,h3")
+      .allTextContents();
+
+  return {
+    step,
+
+    type: "state-captured",
+
+    timestamp:
+      new Date().toISOString(),
+
+    url: page.url(),
+
+    title:
+      await page.title(),
+
+    headings: headings
+      .map(clean)
+      .filter(Boolean)
+      .slice(0, 8),
+
+    screenshot,
+
+    cursor,
+
+    shot: shot
+      ? {
+          id: shot.id,
+          type: shot.type,
+          goal: shot.goal,
+          plannedDuration:
+            shot.duration
+        }
+      : null
+  };
+}
+
+async function runWorkflow(
+  url,
+  options = {}
+) {
   const maxSteps = Math.min(
-    Math.max(Number(options.maxSteps) || 4, 1),
+    Math.max(
+      Number(options.maxSteps) || 4,
+      1
+    ),
     6
   );
 
   const outputDir =
     options.outputDir ||
-    path.join(process.cwd(), "output", "recording");
+    path.join(
+      process.cwd(),
+      "output",
+      "recording"
+    );
 
-  fs.mkdirSync(outputDir, { recursive: true });
-
-  const browser = await chromium.launch({
-    headless: true
-  });
-
-  const context = await browser.newContext({
-    viewport: {
-      width: 1440,
-      height: 900
-    },
-
-    recordVideo: {
-      dir: path.join(outputDir, "video")
+  fs.mkdirSync(
+    outputDir,
+    {
+      recursive: true
     }
-  });
+  );
 
-  const page = await context.newPage();
+  const browser =
+    await chromium.launch({
+      headless: true
+    });
 
-  const origin = new URL(url).origin;
+  const context =
+    await browser.newContext({
+      viewport: {
+        width: 1440,
+        height: 900
+      },
+
+      recordVideo: {
+        dir: path.join(
+          outputDir,
+          "video"
+        )
+      }
+    });
+
+  const page =
+    await context.newPage();
+
+  const origin =
+    new URL(url).origin;
 
   const errors = [];
   const requestFailures = [];
 
   let pageCrashed = false;
 
-  const startedAt = Date.now();
+  const startedAt =
+    Date.now();
 
   const steps = [];
   const visited = new Set();
 
-  page.on("console", (message) => {
-    if (message.type() === "error") {
-      errors.push(message.text());
+  let intelligence = null;
+  let shotPlan = null;
+
+  page.on(
+    "console",
+    (message) => {
+      if (
+        message.type() ===
+        "error"
+      ) {
+        errors.push(
+          message.text()
+        );
+      }
     }
-  });
+  );
 
-  page.on("pageerror", (error) => {
-    errors.push(error.message);
-  });
+  page.on(
+    "pageerror",
+    (error) => {
+      errors.push(
+        error.message
+      );
+    }
+  );
 
-  page.on("requestfailed", (request) => {
-    requestFailures.push({
-      url: request.url(),
-      failure:
-        request.failure()?.errorText ||
-        "request failed"
-    });
-  });
+  page.on(
+    "requestfailed",
+    (request) => {
+      requestFailures.push({
+        url: request.url(),
+        failure:
+          request
+            .failure()
+            ?.errorText ||
+          "request failed"
+      });
+    }
+  );
 
-  page.on("crash", () => {
-    pageCrashed = true;
-    errors.push("Page crashed during capture.");
-  });
+  page.on(
+    "crash",
+    () => {
+      pageCrashed = true;
+
+      errors.push(
+        "Page crashed during capture."
+      );
+    }
+  );
 
   try {
-    /*
-     * STEP 1
-     * Open the real product.
-     */
     await page.goto(url, {
-      waitUntil: "domcontentloaded",
+      waitUntil:
+        "domcontentloaded",
       timeout: 30000
     });
 
-    await waitForStability(page);
-
-    /*
-     * STEP 2
-     * Inspect the real product.
-     */
-    const inspection = await inspectForDirector(
-      page,
-      url
+    await waitForStability(
+      page
     );
 
-    /*
-     * STEP 3
-     * Let the director interpret the product.
-     */
-    const intelligence =
-      buildIntelligence(inspection);
+    const inspection =
+      await inspectForDirector(
+        page,
+        url
+      );
 
-    intelligence.origin = origin;
+    intelligence =
+      buildIntelligence(
+        inspection
+      );
 
-    const shotPlan =
-      buildShotPlan(intelligence);
+    intelligence.origin =
+      origin;
 
-    /*
-     * STEP 4
-     * Execute the director's workflow.
-     */
+    shotPlan =
+      buildShotPlan(
+        intelligence
+      );
+
+    const creationProduct =
+      isCreationProduct(
+        intelligence
+      );
+
+    let creationStep = 0;
+
     for (
       let step = 1;
       step <= maxSteps;
@@ -327,109 +753,279 @@ async function runWorkflow(url, options = {}) {
         shotPlan.shots[
           Math.min(
             step - 1,
-            shotPlan.shots.length - 1
+            shotPlan.shots.length -
+              1
           )
         ];
 
-      const actionStartedAt = Date.now();
+      const actionStartedAt =
+        Date.now();
 
-      const beforeUrl = page.url();
+      const beforeUrl =
+        page.url();
 
-      const screenshot =
-        `step-${String(step).padStart(2, "0")}-before.png`;
+      const beforeScreenshot =
+        `step-${String(
+          step
+        ).padStart(
+          2,
+          "0"
+        )}-before.png`;
 
       await page.screenshot({
         path: path.join(
           outputDir,
-          screenshot
+          beforeScreenshot
         ),
         fullPage: false
       });
 
       /*
-       * Discover visible actions.
+       * CREATION PRODUCTS
+       *
+       * For Excalidraw-like products,
+       * do not hunt for generic DOM
+       * buttons such as "Open Ctrl+O".
+       *
+       * The director should control the
+       * actual creative surface.
        */
-      const actions =
-        await visibleActions(page);
+      if (
+        creationProduct &&
+        step >= 1
+      ) {
+        creationStep += 1;
 
-      /*
-       * Score them using the director.
-       */
-      const candidates = actions
-        .map((action) => ({
-          ...action,
-          score: directorScore(
-            action,
-            intelligence
-          )
-        }))
-        .filter(
-          (action) => action.score > 0
-        )
-        .sort(
-          (a, b) =>
-            b.score - a.score ||
-            a.y - b.y
+        const canvasResult =
+          await performCanvasCreation(
+            page,
+            intelligence,
+            creationStep
+          );
+
+        if (
+          canvasResult.success
+        ) {
+          const cursor =
+            canvasResult.coordinates
+              ? {
+                  x:
+                    canvasResult
+                      .coordinates
+                      .endX,
+                  y:
+                    canvasResult
+                      .coordinates
+                      .endY
+                }
+              : null;
+
+          const state =
+            await captureState(
+              page,
+              outputDir,
+              step,
+              shot,
+              cursor
+            );
+
+          state.urlChanged =
+            beforeUrl !==
+            state.url;
+
+          state.elapsedMs =
+            Date.now() -
+            actionStartedAt;
+
+          state.action = {
+            type:
+              canvasResult.type,
+
+            text:
+              canvasResult.action
+          };
+
+          state.canvas =
+            canvasResult.canvas;
+
+          state.coordinates =
+            canvasResult.coordinates;
+
+          state.evaluation =
+            evaluateCapturedState(
+              state,
+              intelligence
+            );
+
+          steps.push({
+            step,
+
+            type:
+              "action-selected",
+
+            timestamp:
+              new Date().toISOString(),
+
+            action: {
+              type:
+                canvasResult.type,
+
+              text:
+                canvasResult.action
+            },
+
+            director: {
+              archetype:
+                intelligence.archetype,
+
+              promise:
+                intelligence.promise,
+
+              strongestAction:
+                intelligence.strongestAction
+            },
+
+            shot: shot
+              ? {
+                  id: shot.id,
+                  type: shot.type,
+                  goal: shot.goal,
+                  plannedDuration:
+                    shot.duration
+                }
+              : null,
+
+            url: page.url(),
+
+            screenshot:
+              beforeScreenshot
+          });
+
+          steps.push(
+            state
+          );
+
+          /*
+           * Once the director sees
+           * useful canvas evidence,
+           * hold the final state.
+           */
+          if (
+            state.evaluation
+              ?.proof
+          ) {
+            steps.push({
+              step,
+
+              type:
+                "director-hold",
+
+              reason:
+                state.evaluation
+                  .reason
+            });
+
+            break;
+          }
+
+          continue;
+        }
+
+        /*
+         * If a creation surface was not
+         * found, fall back to safe DOM
+         * actions rather than failing
+         * the entire capture.
+         */
+        steps.push({
+          step,
+
+          type:
+            "canvas-unavailable",
+
+          reason:
+            canvasResult.reason
+        });
+      }
+
+      const actions =
+        await visibleActions(
+          page
         );
 
-      /*
-       * Select an action we have not already visited.
-       */
-      const target = candidates.find(
-        (action) =>
-          !visited.has(
-            `${page.url()}|${action.text}|${
-              action.href || ""
-            }`
-          )
-      );
+      const candidates =
+        actions
+          .map((action) => ({
+            ...action,
 
-      /*
-       * Nothing safe to do.
-       */
+            score:
+              directorScore(
+                action,
+                intelligence
+              )
+          }))
+          .filter(
+            (action) =>
+              action.score > 0
+          )
+          .sort(
+            (a, b) =>
+              b.score -
+                a.score ||
+              a.y - b.y
+          );
+
+      const target =
+        candidates.find(
+          (action) =>
+            !visited.has(
+              `${page.url()}|${action.text}|${action.href || ""}`
+            )
+        );
+
       if (!target) {
         steps.push({
           step,
+
           type: "stop",
+
           timestamp:
             new Date().toISOString(),
+
           reason:
             "No new director-approved safe action found",
+
           url: page.url(),
-          screenshot
+
+          screenshot:
+            beforeScreenshot
         });
 
         break;
       }
 
       visited.add(
-        `${page.url()}|${target.text}|${
-          target.href || ""
-        }`
+        `${page.url()}|${target.text}|${target.href || ""}`
       );
 
-      const locator = page
-        .locator(
-          "a,button,[role=button],input[type=submit]"
-        )
-        .filter({
-          hasText: target.text
-        })
-        .first();
-
-      /*
-       * Record director decision.
-       */
       steps.push({
         step,
-        type: "action-selected",
+
+        type:
+          "action-selected",
+
         timestamp:
           new Date().toISOString(),
 
         action: {
-          text: target.text,
-          tag: target.tag,
-          href: target.href || null
+          text:
+            target.text,
+
+          tag:
+            target.tag,
+
+          href:
+            target.href || null
         },
 
         director: {
@@ -442,7 +1038,8 @@ async function runWorkflow(url, options = {}) {
           strongestAction:
             intelligence.strongestAction,
 
-          score: target.score
+          score:
+            target.score
         },
 
         shot: shot
@@ -455,15 +1052,29 @@ async function runWorkflow(url, options = {}) {
             }
           : null,
 
-        url: page.url(),
-        screenshot
+        url:
+          page.url(),
+
+        screenshot:
+          beforeScreenshot
       });
 
-      /*
-       * Execute action.
-       */
-      let actionSucceeded = false;
-      let actionError = null;
+      const locator =
+        page
+          .locator(
+            "a,button,[role=button],input[type=submit]"
+          )
+          .filter({
+            hasText:
+              target.text
+          })
+          .first();
+
+      let actionSucceeded =
+        false;
+
+      let actionError =
+        null;
 
       for (
         let attempt = 1;
@@ -471,9 +1082,6 @@ async function runWorkflow(url, options = {}) {
         attempt++
       ) {
         try {
-          /*
-           * Never follow an unsafe external link.
-           */
           if (
             target.tag === "a" &&
             !isSafeHref(
@@ -490,156 +1098,134 @@ async function runWorkflow(url, options = {}) {
             timeout: 8000
           });
 
-          actionSucceeded = true;
+          actionSucceeded =
+            true;
 
           break;
         } catch (error) {
-          actionError = error;
+          actionError =
+            error;
 
           steps.push({
             step,
-            type: "action-retry",
+
+            type:
+              "action-retry",
+
             attempt,
+
             timestamp:
               new Date().toISOString(),
 
             action: {
-              text: target.text,
-              tag: target.tag
+              text:
+                target.text,
+
+              tag:
+                target.tag
             },
 
-            reason: clean(
-              error.message
-            )
+            reason:
+              clean(
+                error.message
+              )
           });
 
-          await waitForStability(page);
+          await waitForStability(
+            page
+          );
         }
       }
 
-      /*
-       * Action failed.
-       */
       if (!actionSucceeded) {
         steps.push({
           step,
-          type: "action-failed",
+
+          type:
+            "action-failed",
+
           timestamp:
             new Date().toISOString(),
 
           action: {
-            text: target.text,
-            tag: target.tag
+            text:
+              target.text,
+
+            tag:
+              target.tag
           },
 
-          reason: clean(
-            actionError?.message ||
-              "Action failed"
-          )
+          reason:
+            clean(
+              actionError?.message ||
+                "Action failed"
+            )
         });
 
         continue;
       }
 
-      /*
-       * Wait for the product to settle.
-       */
-      await waitForStability(page);
+      await waitForStability(
+        page
+      );
 
-      const afterUrl = page.url();
+      const afterUrl =
+        page.url();
 
-      /*
-       * Same-origin protection.
-       */
-      if (!afterUrl.startsWith(origin)) {
+      if (
+        !afterUrl.startsWith(
+          origin
+        )
+      ) {
         steps.push({
           step,
+
           type: "blocked",
+
           reason:
             "Navigation left approved origin.",
+
           url: afterUrl
         });
 
         break;
       }
 
-      /*
-       * Capture result screenshot.
-       */
-      const afterScreenshot =
-        `step-${String(step).padStart(
-          2,
-          "0"
-        )}-after.png`;
+      const targetX =
+        target.x +
+        target.width / 2;
 
-      await page.screenshot({
-        path: path.join(
+      const targetY =
+        target.y +
+        target.height / 2;
+
+      const state =
+        await captureState(
+          page,
           outputDir,
-          afterScreenshot
-        ),
-        fullPage: false
-      });
+          step,
+          shot,
+          {
+            x: targetX,
+            y: targetY
+          }
+        );
 
-      const headings =
-        await page
-          .locator("h1,h2,h3")
-          .allTextContents();
+      state.urlChanged =
+        beforeUrl !==
+        afterUrl;
 
-      /*
-       * Cursor position represents the action
-       * BRAG performed.
-       */
-      const cursor = {
-        x:
-          target.x +
-          target.width / 2,
+      state.elapsedMs =
+        Date.now() -
+        actionStartedAt;
 
-        y:
-          target.y +
-          target.height / 2
+      state.action = {
+        type: "dom-click",
+
+        text:
+          target.text
       };
 
-      const state = {
-        step,
-        type: "state-captured",
-
-        timestamp:
-          new Date().toISOString(),
-
-        url: afterUrl,
-
-        urlChanged:
-          beforeUrl !== afterUrl,
-
-        shot: shot
-          ? {
-              id: shot.id,
-              type: shot.type,
-              goal: shot.goal
-            }
-          : null,
-
-        title:
-          await page.title(),
-
-        headings:
-          headings
-            .map(clean)
-            .filter(Boolean)
-            .slice(0, 8),
-
-        screenshot: afterScreenshot,
-
-        cursor,
-
-        elapsedMs:
-          Date.now() -
-          actionStartedAt
-      };
-
-      /*
-       * Director evaluates what happened.
-       */
       state.evaluation =
         evaluateCapturedState(
           state,
@@ -648,41 +1234,45 @@ async function runWorkflow(url, options = {}) {
 
       steps.push(state);
 
-      /*
-       * Useful result found.
-       */
       if (
-        state.evaluation?.decision ===
+        state.evaluation
+          ?.decision ===
         "hold-result"
       ) {
         steps.push({
           step,
-          type: "director-hold",
+
+          type:
+            "director-hold",
+
           reason:
-            state.evaluation.reason
+            state.evaluation
+              .reason
         });
 
         break;
       }
 
-      /*
-       * Director wants a different route.
-       */
       if (
-        state.evaluation?.decision ===
+        state.evaluation
+          ?.decision ===
         "replan"
       ) {
         const freshActions =
-          await visibleActions(page);
+          await visibleActions(
+            page
+          );
 
         const alternatives =
           freshActions
             .map((action) => ({
               ...action,
-              score: directorScore(
-                action,
-                intelligence
-              )
+
+              score:
+                directorScore(
+                  action,
+                  intelligence
+                )
             }))
             .filter(
               (action) =>
@@ -690,7 +1280,8 @@ async function runWorkflow(url, options = {}) {
             )
             .sort(
               (a, b) =>
-                b.score - a.score ||
+                b.score -
+                  a.score ||
                 a.y - b.y
             );
 
@@ -698,29 +1289,36 @@ async function runWorkflow(url, options = {}) {
           alternatives.find(
             (action) =>
               !visited.has(
-                `${page.url()}|${action.text}|${
-                  action.href || ""
-                }`
+                `${page.url()}|${action.text}|${action.href || ""}`
               )
           );
 
         if (alternative) {
           steps.push({
             step,
-            type: "replan",
+
+            type:
+              "replan",
+
             timestamp:
               new Date().toISOString(),
 
-            from: target.text,
-            to: alternative.text,
+            from:
+              target.text,
+
+            to:
+              alternative.text,
 
             reason:
-              state.evaluation.reason
+              state.evaluation
+                .reason
           });
         } else {
           steps.push({
             step,
-            type: "replan-stop",
+
+            type:
+              "replan-stop",
 
             reason:
               "No alternate safe action available."
@@ -731,11 +1329,8 @@ async function runWorkflow(url, options = {}) {
       }
     }
 
-    /*
-     * Build capture manifest.
-     */
     const manifest = {
-      version: "1.6",
+      version: "1.7",
 
       source: url,
 
@@ -744,16 +1339,19 @@ async function runWorkflow(url, options = {}) {
 
       maxSteps,
 
-      director: intelligence,
+      director:
+        intelligence,
 
       shotPlan,
 
       steps,
 
       elapsedMs:
-        Date.now() - startedAt,
+        Date.now() -
+        startedAt,
 
-      consoleErrors: errors,
+      consoleErrors:
+        errors,
 
       requestFailures,
 
@@ -770,13 +1368,33 @@ async function runWorkflow(url, options = {}) {
               "action-failed"
           ).length,
 
-        recordingValid: false
+        canvasActions:
+          steps.filter(
+            (step) =>
+              step.action?.type ===
+              "canvas-draw"
+          ).length,
+
+        stateCaptures:
+          steps.filter(
+            (step) =>
+              step.type ===
+              "state-captured"
+          ).length,
+
+        recordingValid:
+          false
       },
 
       policy: {
-        sameOriginOnly: true,
+        sameOriginOnly:
+          true,
 
-        directorGuided: true,
+        directorGuided:
+          true,
+
+        creationCanvasEnabled:
+          true,
 
         safeActionAllowlist:
           SAFE.source,
@@ -788,9 +1406,6 @@ async function runWorkflow(url, options = {}) {
       }
     };
 
-    /*
-     * Finalize Playwright recording.
-     */
     const recordedVideo =
       page.video();
 
@@ -801,7 +1416,7 @@ async function runWorkflow(url, options = {}) {
         const videoPath =
           await recordedVideo.path();
 
-        const target =
+        const targetPath =
           path.join(
             outputDir,
             "real-product-footage.webm"
@@ -809,35 +1424,40 @@ async function runWorkflow(url, options = {}) {
 
         fs.copyFileSync(
           videoPath,
-          target
+          targetPath
         );
 
         manifest.captureHealth.recordingValid =
-          fs.existsSync(target) &&
-          fs.statSync(target).size > 0;
+          fs.existsSync(
+            targetPath
+          ) &&
+          fs.statSync(
+            targetPath
+          ).size > 0;
 
         manifest.realFootage = {
           file:
             "real-product-footage.webm",
 
-          format: "webm",
+          format:
+            "webm",
 
           source:
             "playwright-browser-recording",
 
-          path: target
+          path:
+            targetPath
         };
       } catch (error) {
         manifest.realFootage = {
           file: null,
-          error: error.message
+
+          error:
+            error.message
         };
       }
     }
 
-    /*
-     * Save manifest.
-     */
     fs.writeFileSync(
       path.join(
         outputDir,
@@ -854,10 +1474,6 @@ async function runWorkflow(url, options = {}) {
 
     return manifest;
   } finally {
-    /*
-     * Ensure the browser is not left running
-     * if anything unexpected happens.
-     */
     await browser
       .close()
       .catch(() => {});
@@ -865,7 +1481,8 @@ async function runWorkflow(url, options = {}) {
 }
 
 if (require.main === module) {
-  const url = process.argv[2];
+  const url =
+    process.argv[2];
 
   if (!url) {
     console.error(
@@ -876,7 +1493,8 @@ if (require.main === module) {
   }
 
   runWorkflow(url, {
-    maxSteps: process.argv[3]
+    maxSteps:
+      process.argv[3]
   })
     .then((result) => {
       console.log(
