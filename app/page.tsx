@@ -12,7 +12,7 @@ const initialScenes: Scene[] = [
   { label: "05", title: "Close", duration: "04s", status: "Waiting" }
 ];
 
-const DEFAULT_ENGINE = (process.env.NEXT_PUBLIC_BRAG_ENGINE_URL || "http://localhost:4173").replace(/\/$/, "");
+const DEFAULT_ENGINE = (process.env.NEXT_PUBLIC_DEMO_ENGINE_URL || "http://localhost:4173").replace(/\/$/, "");
 
 type EngineStatus = "unknown" | "checking" | "connected" | "offline";
 
@@ -29,8 +29,8 @@ export default function Home() {
   const [engineToken, setEngineToken] = useState("");
 
   useEffect(() => {
-    setEngineUrl(localStorage.getItem("brag_engine_url") || DEFAULT_ENGINE);
-    setEngineToken(localStorage.getItem("brag_engine_token") || "");
+    setEngineUrl(localStorage.getItem("demo_engine_url") || DEFAULT_ENGINE);
+    setEngineToken(localStorage.getItem("demo_engine_token") || "");
   }, []);
 
   const ENGINE = engineUrl.replace(/\/$/, "");
@@ -63,7 +63,7 @@ export default function Home() {
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       setEngineStatus("offline");
-      throw new Error(data.error || "BRAG engine failed.");
+      throw new Error(data.error || "demo engine failed.");
     }
     setEngineStatus("connected");
     return data;
@@ -74,7 +74,7 @@ export default function Home() {
     setError("");
     try {
       const available = await checkEngine();
-      if (!available) throw new Error("BRAG engine is not reachable. Start it with npm run engine, or set NEXT_PUBLIC_BRAG_ENGINE_URL to a reachable engine URL.");
+      if (!available) throw new Error("demo engine is not reachable. Start it with npm run engine, or set NEXT_PUBLIC_DEMO_ENGINE_URL to a reachable engine URL.");
       const data = await engineRequest("/api/inspect", { url });
       setInspection(data.inspection);
       const intelligence = data.storyboard?.intelligence;
@@ -89,7 +89,7 @@ export default function Home() {
       setSelected(2);
       setStage("ready");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not reach the local BRAG engine.");
+      setError(e instanceof Error ? e.message : "Could not reach the local demo engine.");
       setStage("error");
     }
   }
@@ -124,7 +124,7 @@ export default function Home() {
   return (
     <main className="app-shell">
       <header className="topbar">
-        <a className="brand" href="#"><span className="brand-mark">B</span><span>BRAG</span></a>
+        <a className="brand" href="#"><span className="brand-mark">B</span><span>demo.</span></a>
         <nav><span>DIRECTOR</span><span>STUDIO</span><span className="engine-dot">● {engineLabel}</span></nav>
       </header>
 
@@ -132,26 +132,26 @@ export default function Home() {
         <div className="hero-copy">
           <div className="kicker">PRODUCT → STORY → VIDEO</div>
           <h1>Turn what you built into a demo people understand.</h1>
-          <p>BRAG studies the real product, chooses the strongest workflow, captures real browser footage, and turns it into a story worth watching.</p>
+          <p>demo. studies the real product, chooses the strongest workflow, captures real browser footage, and turns it into a story worth watching.</p>
         </div>
         <div className="hero-meta"><span>PERSONAL PRODUCTION TOOL</span><span>v2.3</span></div>
       </section>
 
       <section className="workspace">
         <aside className="input-panel">
-          <div className="section-head"><span>01</span><h2>Give BRAG the product</h2></div>
+          <div className="section-head"><span>01</span><h2>Give demo. the product</h2></div>
           <label>Product URL<input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://yourproduct.com" /></label>
           <label>What does it do?<textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Describe the product, problem, and user." rows={5}/></label>
           <div className="dropzone"><strong>+ Add screenshots</strong><span>PNG, JPG · optional</span></div>
           <button className="primary" onClick={buildStory} disabled={!url || stage === "inspecting"}>
             {stage === "inspecting" ? "Inspecting product..." : "Build demo story"}
           </button>
-          <div className="engine-settings"><label>Engine URL<input value={engineUrl} onChange={e => setEngineUrl(e.target.value)} onBlur={() => localStorage.setItem("brag_engine_url", engineUrl.replace(/\/$/, ""))} placeholder="https://your-brag-worker.example.com" /></label><label>Worker token<input type="password" value={engineToken} onChange={e => setEngineToken(e.target.value)} onBlur={() => localStorage.setItem("brag_engine_token", engineToken)} placeholder="Optional if worker auth is enabled" /></label></div><div className="engine-note"><span className="live-dot"/> Engine: <code>{ENGINE}</code>. Vercel hosts the control surface; Playwright, FFmpeg, capture and rendering run in the BRAG engine.</div>
+          <div className="engine-settings"><label>Engine URL<input value={engineUrl} onChange={e => setEngineUrl(e.target.value)} onBlur={() => localStorage.setItem("demo_engine_url", engineUrl.replace(/\/$/, ""))} placeholder="https://your-demo-worker.example.com" /></label><label>Worker token<input type="password" value={engineToken} onChange={e => setEngineToken(e.target.value)} onBlur={() => localStorage.setItem("demo_engine_token", engineToken)} placeholder="Optional if worker auth is enabled" /></label></div><div className="engine-note"><span className="live-dot"/> Engine: <code>{ENGINE}</code>. Vercel hosts the control surface; Playwright, FFmpeg, capture and rendering run in the demo engine.</div>
           {error && <div className="engine-error">{error}<br/><small>Local: <code>npm run personal</code>. Remote: enter your secure worker URL and token above.</small></div>}
         </aside>
 
         <section className="director-panel">
-          <div className="section-head"><span>02</span><h2>BRAG Director</h2><em className={stage === "ready" ? "ok" : ""}>{stage === "idle" ? "WAITING" : stage.toUpperCase()}</em></div>
+          <div className="section-head"><span>02</span><h2>demo. Director</h2><em className={stage === "ready" ? "ok" : ""}>{stage === "idle" ? "WAITING" : stage.toUpperCase()}</em></div>
           <div className="director-grid">
             <div className="intelligence">
               <div className="mini-label">PRODUCT INTELLIGENCE</div>
@@ -185,7 +185,7 @@ export default function Home() {
           <div className="actions"><button onClick={capture} disabled={stage !== "ready"}>{stage === "capturing" ? "Capturing..." : "Capture real product"}</button><button className="primary" onClick={produce} disabled={stage !== "ready"}>{stage === "capturing" ? "Producing..." : "Render demo"}</button></div>
         </div>
         <div className="stage">
-          <div className="stage-top"><span>BRAG / {productName.toUpperCase()}</span><span>1280 × 720</span></div>
+          <div className="stage-top"><span>demo. / {productName.toUpperCase()}</span><span>1280 × 720</span></div>
           <div className="stage-content">
             <div className="stage-copy"><span>SCENE {String(selected + 1).padStart(2, "0")}</span><h3>{scenes[selected]?.title}</h3><p>{selected === 2 ? "Show the shortest path from the user's action to the useful result." : "A clean, evidence-backed moment from the product story."}</p></div>
             <div className="fake-browser"><div className="browser-bar"><i/><i/><i/><span>{url || "yourproduct.com"}</span></div><div className="browser-body"><div/><div/><div className="wide"/></div></div>
@@ -193,7 +193,7 @@ export default function Home() {
         </div>
       </section>
 
-      <footer><span>BRAG</span><span>Build → Demo → Post → Repeat</span><span>Personal tool · No accounts · No billing</span></footer>
+      <footer><span>demo.</span><span>Build → Demo → Post → Repeat</span><span>Personal tool · No accounts · No billing</span></footer>
     </main>
   );
 }
