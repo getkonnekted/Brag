@@ -2,7 +2,9 @@ const fs = require("fs");
 const path = require("path");
 const { execFileSync } = require("child_process");
 
-const packagePath = process.argv[2] || "output/demo/package.json";
+const packagePath =
+  process.argv[2] || "output/demo/package.json";
+
 const demoDir = path.dirname(packagePath);
 const outputRoot = path.join(demoDir, "..");
 const recordingDir = path.join(outputRoot, "recording");
@@ -10,90 +12,508 @@ const renderDir = path.join(outputRoot, "render");
 const qaDir = path.join(outputRoot, "qa");
 
 if (!fs.existsSync(packagePath)) {
-  console.error("Demo package not found. Run: npm run demo -- <url> first.");
+  console.error(
+    "Demo package not found. Run: npm run demo -- <url> first."
+  );
   process.exit(1);
 }
 
 fs.mkdirSync(qaDir, { recursive: true });
 
-const pkg = JSON.parse(fs.readFileSync(packagePath, "utf8"));
-const manifestPath = path.join(recordingDir, "manifest.json");
-const planPath = path.join(demoDir, "edit-plan.json");
-const audioManifestPath = path.join(demoDir, "audio", "manifest.json");
+const pkg = JSON.parse(
+  fs.readFileSync(packagePath, "utf8")
+);
+
+const manifestPath = path.join(
+  recordingDir,
+  "manifest.json"
+);
+
+const planPath = path.join(
+  demoDir,
+  "edit-plan.json"
+);
+
+const audioManifestPath = path.join(
+  demoDir,
+  "audio",
+  "manifest.json"
+);
 
 let manifest = null;
 let plan = null;
 let audioManifest = null;
+
 const checks = [];
 
-function add(id, severity, message, detail = "") {
-  checks.push({ id, severity, message, detail });
+function add(
+  id,
+  severity,
+  message,
+  detail = ""
+) {
+  checks.push({
+    id,
+    severity,
+    message,
+    detail
+  });
 }
 
-function exists(p) { return fs.existsSync(p); }
-function fileSize(p) { return exists(p) ? fs.statSync(p).size : 0; }
+function exists(filePath) {
+  return fs.existsSync(filePath);
+}
 
-function probe(file) {
+function fileSize(filePath) {
+  return exists(filePath)
+    ? fs.statSync(filePath).size
+    : 0;
+}
+
+function readJson(filePath) {
   try {
-    return JSON.parse(execFileSync("ffprobe", [
-      "-v", "error",
-      "-show_entries", "format=duration:stream=index,codec_type,width,height",
-      "-of", "json", file
-    ], { encoding: "utf8" }));
+    return JSON.parse(
+      fs.readFileSync(filePath, "utf8")
+    );
+  } catch (error) {
+    return null;
+  }
+}
+
+function probe(filePath) {
+  try {
+    return JSON.parse(
+      execFileSync(
+        "ffprobe",
+        [
+          "-v",
+          "error",
+          "-show_entries",
+          "format=duration:stream=index,codec_type,width,height",
+          "-of",
+          "json",
+          filePath
+        ],
+        {
+          encoding: "utf8"
+        }
+      )
+    );
   } catch {
     return null;
   }
 }
 
+/*
+ * ---------------------------------------------------------
+ * TOOLING
+ * ---------------------------------------------------------
+ */
+
 try {
-  execFileSync("ffprobe", ["-version"], { stdio: "ignore" });
+  execFileSync(
+    "ffprobe",
+    ["-version"],
+    {
+      stdio: "ignore"
+    }
+  );
 } catch {
-  add("ffprobe", "warning", "ffprobe is not installed; media duration and dimension checks are limited.");
+  add(
+    "ffprobe",
+    "warning",
+    "ffprobe is not installed; media duration and dimension checks are limited."
+  );
 }
 
-if (exists(manifestPath)) manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
-else add("recording-manifest", "fail", "Recording manifest is missing.", "Run npm run demo before QA.");
+/*
+ * ---------------------------------------------------------
+ * LOAD PIPELINE ARTIFACTS
+ * ---------------------------------------------------------
+ */
 
-if (exists(planPath)) plan = JSON.parse(fs.readFileSync(planPath, "utf8"));
-else add("edit-plan", "warning", "Edit plan is missing.", "Run npm run edit-plan before QA.");
+if (exists(manifestPath)) {
+  manifest = readJson(manifestPath);
 
-if (exists(audioManifestPath)) audioManifest = JSON.parse(fs.readFileSync(audioManifestPath, "utf8"));
+  if (!manifest) {
+    add(
+      "recording-manifest",
+      "fail",
+      "Recording manifest could not be parsed."
+    );
+  }
+} else {
+  add(
+    "recording-manifest",
+    "fail",
+    "Recording manifest is missing.",
+    "Run npm run demo before QA."
+  );
+}
 
-const scenes = Array.isArray(pkg.scenes) ? pkg.scenes : [];
-const states = manifest?.steps?.filter(s => s.type === "state-captured") || [];
+if (exists(planPath)) {
+  plan = readJson(planPath);
 
-if (!scenes.length) add("scenes", "fail", "Demo package contains no scenes.");
-else if (scenes.length < 3) add("scenes", "warning", "Demo has fewer than 3 scenes.", `${scenes.length} scenes detected.`);
-else add("scenes", "pass", "Demo has a usable scene sequence.", `${scenes.length} scenes detected.`);
+  if (!plan) {
+    add(
+      "edit-plan",
+      "warning",
+      "Edit plan exists but could not be parsed."
+    );
+  }
+} else {
+  add(
+    "edit-plan",
+    "warning",
+    "Edit plan is missing.",
+    "Run npm run edit-plan before QA."
+  );
+}
 
-if (states.length === 0) add("workflow", "fail", "No captured workflow states were found.");
-else if (states.length === 1) add("workflow", "warning", "Only one workflow state was captured.");
-else add("workflow", "pass", "Workflow captured multiple product states.", `${states.length} states detected.`);
+if (exists(audioManifestPath)) {
+  audioManifest = readJson(
+    audioManifestPath
+  );
+}
 
-const captureHealth = manifest?.captureHealth || null;
-if (captureHealth) {\n  if (captureHealth.pageCrashed) add("capture-health", "fail", "Browser page crashed during capture.");\n  else if (captureHealth.actionFailures) add("capture-health", "warning", "One or more browser actions required recovery.", `${captureHealth.actionFailures} action failure(s).`);\n  else add("capture-health", "pass", "Capture health checks completed.");\n  if (captureHealth.recordingValid === false) add("recording-health", "fail", "Browser recording was not validated.");
-}\n\nconst errors = manifest?.consoleErrors || [];
-if (errors.length) add("console-errors", "warning", "Browser console errors were captured.", `${errors.length} error(s) recorded.`);
-else add("console-errors", "pass", "No browser console errors were recorded.");
+/*
+ * ---------------------------------------------------------
+ * DEMO / SCENE DATA
+ * ---------------------------------------------------------
+ */
 
-const missingFootage = scenes.filter(s => !s.footage || !exists(path.join(recordingDir, s.footage)));
-if (missingFootage.length) add("footage", "fail", "One or more scenes have missing footage.", missingFootage.map(s => s.id).join(", "));
-else add("footage", "pass", "All scene footage files exist.", `${scenes.length} scene assets verified.`);
+const scenes = Array.isArray(pkg.scenes)
+  ? pkg.scenes
+  : [];
 
-const zeroDuration = scenes.filter(s => !Number.isFinite(Number(s.duration)) || Number(s.duration) <= 0);
-if (zeroDuration.length) add("durations", "fail", "One or more scenes have invalid duration.", zeroDuration.map(s => s.id).join(", "));
-else add("durations", "pass", "All scene durations are positive.");
+const states =
+  manifest &&
+  Array.isArray(manifest.steps)
+    ? manifest.steps.filter(
+        step => step.type === "state-captured"
+      )
+    : [];
 
-const longCaptions = scenes.filter(s => String(s.narration || "").length > 180);
-if (longCaptions.length) add("captions", "warning", "Some narration captions may be difficult to read.", longCaptions.map(s => `${s.id} (${String(s.narration).length} chars)`).join(", "));
-else add("captions", "pass", "Narration lengths are within the conservative caption threshold.");
+/*
+ * ---------------------------------------------------------
+ * SCENE CHECK
+ * ---------------------------------------------------------
+ */
 
-const cursorProblems = scenes.filter(s => {
-  const c = s.cursor;
-  return c && (!Number.isFinite(Number(c.x)) || !Number.isFinite(Number(c.y)) || Number(c.x) < 0 || Number(c.x) > 1440 || Number(c.y) < 0 || Number(c.y) > 900);
-});
-if (cursorProblems.length) add("cursor", "warning", "One or more cursor targets are outside the capture frame.", cursorProblems.map(s => s.id).join(", "));
-else add("cursor", "pass", "Cursor targets are within the 1440x900 capture frame.");
+if (!scenes.length) {
+  add(
+    "scenes",
+    "fail",
+    "Demo package contains no scenes."
+  );
+} else if (scenes.length < 3) {
+  add(
+    "scenes",
+    "warning",
+    "Demo has fewer than 3 scenes.",
+    `${scenes.length} scenes detected.`
+  );
+} else {
+  add(
+    "scenes",
+    "pass",
+    "Demo has a usable scene sequence.",
+    `${scenes.length} scenes detected.`
+  );
+}
+
+/*
+ * ---------------------------------------------------------
+ * WORKFLOW CHECK
+ * ---------------------------------------------------------
+ */
+
+if (states.length === 0) {
+  add(
+    "workflow",
+    "fail",
+    "No captured workflow states were found."
+  );
+} else if (states.length === 1) {
+  add(
+    "workflow",
+    "warning",
+    "Only one workflow state was captured."
+  );
+} else {
+  add(
+    "workflow",
+    "pass",
+    "Workflow captured multiple product states.",
+    `${states.length} states detected.`
+  );
+}
+
+/*
+ * ---------------------------------------------------------
+ * CAPTURE HEALTH
+ * ---------------------------------------------------------
+ */
+
+const captureHealth =
+  manifest?.captureHealth || null;
+
+if (captureHealth) {
+  if (captureHealth.pageCrashed) {
+    add(
+      "capture-health",
+      "fail",
+      "Browser page crashed during capture."
+    );
+  } else if (
+    captureHealth.actionFailures
+  ) {
+    add(
+      "capture-health",
+      "warning",
+      "One or more browser actions required recovery.",
+      `${captureHealth.actionFailures} action failure(s).`
+    );
+  } else {
+    add(
+      "capture-health",
+      "pass",
+      "Capture health checks completed."
+    );
+  }
+
+  if (
+    captureHealth.recordingValid === false
+  ) {
+    add(
+      "recording-health",
+      "fail",
+      "Browser recording was not validated."
+    );
+  }
+}
+
+/*
+ * ---------------------------------------------------------
+ * CONSOLE ERRORS
+ * ---------------------------------------------------------
+ */
+
+const errors =
+  manifest?.consoleErrors || [];
+
+if (errors.length) {
+  add(
+    "console-errors",
+    "warning",
+    "Browser console errors were captured.",
+    `${errors.length} error(s) recorded.`
+  );
+} else {
+  add(
+    "console-errors",
+    "pass",
+    "No browser console errors were recorded."
+  );
+}
+
+/*
+ * ---------------------------------------------------------
+ * FOOTAGE CHECK
+ * ---------------------------------------------------------
+ */
+
+const missingFootage =
+  scenes.filter(scene => {
+    if (!scene.footage) {
+      return true;
+    }
+
+    const footagePath = path.join(
+      recordingDir,
+      scene.footage
+    );
+
+    return !exists(footagePath);
+  });
+
+if (missingFootage.length) {
+  add(
+    "footage",
+    "fail",
+    "One or more scenes have missing footage.",
+    missingFootage
+      .map(scene => scene.id || "unknown")
+      .join(", ")
+  );
+} else if (scenes.length) {
+  add(
+    "footage",
+    "pass",
+    "All scene footage files exist.",
+    `${scenes.length} scene assets verified.`
+  );
+}
+
+/*
+ * ---------------------------------------------------------
+ * FOOTAGE SIZE CHECK
+ * ---------------------------------------------------------
+ */
+
+const emptyFootage =
+  scenes.filter(scene => {
+    if (!scene.footage) {
+      return false;
+    }
+
+    const footagePath = path.join(
+      recordingDir,
+      scene.footage
+    );
+
+    return (
+      exists(footagePath) &&
+      fileSize(footagePath) === 0
+    );
+  });
+
+if (emptyFootage.length) {
+  add(
+    "footage-size",
+    "fail",
+    "One or more footage files are empty.",
+    emptyFootage
+      .map(scene => scene.id || "unknown")
+      .join(", ")
+  );
+} else if (scenes.length) {
+  add(
+    "footage-size",
+    "pass",
+    "Scene footage files contain data."
+  );
+}
+
+/*
+ * ---------------------------------------------------------
+ * DURATION CHECK
+ * ---------------------------------------------------------
+ */
+
+const zeroDuration =
+  scenes.filter(scene => {
+    const duration =
+      Number(scene.duration);
+
+    return (
+      !Number.isFinite(duration) ||
+      duration <= 0
+    );
+  });
+
+if (zeroDuration.length) {
+  add(
+    "durations",
+    "fail",
+    "One or more scenes have invalid duration.",
+    zeroDuration
+      .map(scene => scene.id || "unknown")
+      .join(", ")
+  );
+} else if (scenes.length) {
+  add(
+    "durations",
+    "pass",
+    "All scene durations are positive."
+  );
+}
+
+/*
+ * ---------------------------------------------------------
+ * CAPTION CHECK
+ * ---------------------------------------------------------
+ */
+
+const longCaptions =
+  scenes.filter(scene => {
+    return (
+      String(scene.narration || "")
+        .length > 180
+    );
+  });
+
+if (longCaptions.length) {
+  add(
+    "captions",
+    "warning",
+    "Some narration captions may be difficult to read.",
+    longCaptions
+      .map(
+        scene =>
+          `${scene.id || "unknown"} (${String(
+            scene.narration
+          ).length} chars)`
+      )
+      .join(", ")
+  );
+} else if (scenes.length) {
+  add(
+    "captions",
+    "pass",
+    "Narration lengths are within the conservative caption threshold."
+  );
+}
+
+/*
+ * ---------------------------------------------------------
+ * CURSOR CHECK
+ * ---------------------------------------------------------
+ */
+
+const cursorProblems =
+  scenes.filter(scene => {
+    const cursor = scene.cursor;
+
+    if (!cursor) {
+      return false;
+    }
+
+    const x = Number(cursor.x);
+    const y = Number(cursor.y);
+
+    return (
+      !Number.isFinite(x) ||
+      !Number.isFinite(y) ||
+      x < 0 ||
+      x > 1440 ||
+      y < 0 ||
+      y > 900
+    );
+  });
+
+if (cursorProblems.length) {
+  add(
+    "cursor",
+    "warning",
+    "One or more cursor targets are outside the capture frame.",
+    cursorProblems
+      .map(scene => scene.id || "unknown")
+      .join(", ")
+  );
+} else if (scenes.length) {
+  add(
+    "cursor",
+    "pass",
+    "Cursor targets are within the 1440x900 capture frame."
+  );
+}
+
+/*
+ * ---------------------------------------------------------
+ * RENDERED VIDEO CHECKS
+ * ---------------------------------------------------------
+ */
 
 const expected = {
   "16x9": [1280, 720],
@@ -103,71 +523,353 @@ const expected = {
 
 let mediaChecks = 0;
 let mediaFailures = 0;
-for (const [key, [w, h]] of Object.entries(expected)) {
-  const file = path.join(renderDir, `brag-demo-${key}.mp4`);
-  if (!exists(file) || fileSize(file) === 0) {
-    add(`render-${key}`, "fail", `Rendered ${key} output is missing or empty.`);
+
+for (
+  const [formatKey, dimensions]
+  of Object.entries(expected)
+) {
+  const [
+    expectedWidth,
+    expectedHeight
+  ] = dimensions;
+
+  const filePath = path.join(
+    renderDir,
+    `brag-demo-${formatKey}.mp4`
+  );
+
+  /*
+   * File existence
+   */
+  if (
+    !exists(filePath) ||
+    fileSize(filePath) === 0
+  ) {
+    add(
+      `render-${formatKey}`,
+      "fail",
+      `Rendered ${formatKey} output is missing or empty.`
+    );
+
     mediaFailures++;
     continue;
   }
-  const info = probe(file);
+
+  /*
+   * Media inspection
+   */
+  const info = probe(filePath);
+
   if (!info) {
-    add(`render-${key}`, "warning", `Rendered ${key} output exists, but ffprobe could not inspect it.`);
+    add(
+      `render-${formatKey}`,
+      "warning",
+      `Rendered ${formatKey} output exists, but ffprobe could not inspect it.`
+    );
+
     continue;
   }
+
   mediaChecks++;
-  const video = (info.streams || []).find(s => s.codec_type === "video");
-  const duration = Number(info.format?.duration || 0);
-  const expectedDuration = scenes.reduce((sum, s) => sum + Number(s.duration || 0), 0) - Math.max(0, scenes.length - 1) * 0.35;
-  const dimensionOk = video?.width === w && video?.height === h;
-  const durationOk = duration >= Math.max(0, expectedDuration - 1.5) && duration <= expectedDuration + 1.5;
-  if (!dimensionOk || !durationOk) {
+
+  const videoStream =
+    Array.isArray(info.streams)
+      ? info.streams.find(
+          stream =>
+            stream.codec_type === "video"
+        )
+      : null;
+
+  const duration = Number(
+    info.format?.duration || 0
+  );
+
+  const expectedDuration =
+    scenes.reduce(
+      (sum, scene) =>
+        sum +
+        Number(scene.duration || 0),
+      0
+    ) -
+    Math.max(
+      0,
+      scenes.length - 1
+    ) *
+      0.35;
+
+  const dimensionOk =
+    videoStream &&
+    videoStream.width === expectedWidth &&
+    videoStream.height === expectedHeight;
+
+  const minimumDuration =
+    Math.max(
+      0,
+      expectedDuration - 1.5
+    );
+
+  const maximumDuration =
+    expectedDuration + 1.5;
+
+  const durationOk =
+    duration >= minimumDuration &&
+    duration <= maximumDuration;
+
+  if (
+    !dimensionOk ||
+    !durationOk
+  ) {
     mediaFailures++;
-    add(`render-${key}`, "fail", `Rendered ${key} output failed media validation.`, `Dimensions ${video?.width || "?"}x${video?.height || "?"}; duration ${duration.toFixed(2)}s; expected about ${expectedDuration.toFixed(2)}s.`);
+
+    add(
+      `render-${formatKey}`,
+      "fail",
+      `Rendered ${formatKey} output failed media validation.`,
+      `Dimensions ${
+        videoStream?.width || "?"
+      }x${
+        videoStream?.height || "?"
+      }; duration ${
+        duration.toFixed(2)
+      }s; expected about ${
+        expectedDuration.toFixed(2)
+      }s.`
+    );
   } else {
-    add(`render-${key}`, "pass", `Rendered ${key} output passed media validation.`, `${w}x${h}, ${duration.toFixed(2)}s.`);
+    add(
+      `render-${formatKey}`,
+      "pass",
+      `Rendered ${formatKey} output passed media validation.`,
+      `${expectedWidth}x${expectedHeight}, ${duration.toFixed(2)}s.`
+    );
   }
 }
+
+/*
+ * ---------------------------------------------------------
+ * AUDIO CHECK
+ * ---------------------------------------------------------
+ */
 
 if (audioManifest) {
-  const missingAudio = (audioManifest.scenes || []).filter(s => s.audio && !exists(path.join(demoDir, "audio", s.audio)));
-  if (missingAudio.length) add("audio-assets", "fail", "Narration manifest references missing audio files.", missingAudio.map(s => s.id).join(", "));
-  else add("audio-assets", "pass", "Narration assets referenced by the manifest exist.");
+  const audioScenes =
+    Array.isArray(audioManifest.scenes)
+      ? audioManifest.scenes
+      : [];
+
+  const missingAudio =
+    audioScenes.filter(scene => {
+      if (!scene.audio) {
+        return false;
+      }
+
+      return !exists(
+        path.join(
+          demoDir,
+          "audio",
+          scene.audio
+        )
+      );
+    });
+
+  if (missingAudio.length) {
+    add(
+      "audio-assets",
+      "fail",
+      "Narration manifest references missing audio files.",
+      missingAudio
+        .map(scene => scene.id || "unknown")
+        .join(", ")
+    );
+  } else {
+    add(
+      "audio-assets",
+      "pass",
+      "Narration assets referenced by the manifest exist."
+    );
+  }
 } else {
-  add("audio", "warning", "No narration manifest found; silent rendering is allowed.");
+  add(
+    "audio",
+    "warning",
+    "No narration manifest found; silent rendering is allowed."
+  );
 }
 
-if (manifest?.steps) {
-  const stops = manifest.steps.filter(s => s.type === "stop");
-  if (stops.length) add("workflow-stop", "warning", "The browser runner stopped before reaching its maximum steps.", stops.map(s => s.reason).join("; "));
+/*
+ * ---------------------------------------------------------
+ * WORKFLOW STOP CHECK
+ * ---------------------------------------------------------
+ */
+
+if (
+  manifest &&
+  Array.isArray(manifest.steps)
+) {
+  const stops =
+    manifest.steps.filter(
+      step => step.type === "stop"
+    );
+
+  if (stops.length) {
+    add(
+      "workflow-stop",
+      "warning",
+      "The browser runner stopped before reaching its maximum steps.",
+      stops
+        .map(stop => stop.reason || "Unknown reason")
+        .join("; ")
+    );
+  }
 }
 
-const failures = checks.filter(c => c.severity === "fail").length;
-const warnings = checks.filter(c => c.severity === "warning").length;
-const passes = checks.filter(c => c.severity === "pass").length;
-const score = Math.max(0, Math.round(100 - failures * 25 - warnings * 7));
-const status = failures ? "fail" : warnings ? "warning" : "pass";
+/*
+ * ---------------------------------------------------------
+ * SCORE
+ * ---------------------------------------------------------
+ */
+
+const failures =
+  checks.filter(
+    check =>
+      check.severity === "fail"
+  ).length;
+
+const warnings =
+  checks.filter(
+    check =>
+      check.severity === "warning"
+  ).length;
+
+const passes =
+  checks.filter(
+    check =>
+      check.severity === "pass"
+  ).length;
+
+const score = Math.max(
+  0,
+  Math.round(
+    100 -
+      failures * 25 -
+      warnings * 7
+  )
+);
+
+const status =
+  failures > 0
+    ? "fail"
+    : warnings > 0
+      ? "warning"
+      : "pass";
+
+/*
+ * ---------------------------------------------------------
+ * RECOMMENDED ACTIONS
+ * ---------------------------------------------------------
+ */
+
+const recommendedActions = [];
+
+if (missingFootage.length) {
+  recommendedActions.push(
+    "Regenerate the demo capture so every scene has real footage."
+  );
+}
+
+if (states.length < 2) {
+  recommendedActions.push(
+    "Review the product workflow manually or increase the safe workflow path so BRAG can capture a stronger story."
+  );
+}
+
+if (errors.length) {
+  recommendedActions.push(
+    "Inspect captured browser console errors before publishing the demo."
+  );
+}
+
+if (longCaptions.length) {
+  recommendedActions.push(
+    "Shorten long narration or split it across scenes to protect caption readability."
+  );
+}
+
+if (mediaFailures) {
+  recommendedActions.push(
+    "Re-render the affected output formats and inspect the FFmpeg logs."
+  );
+}
+
+if (
+  warnings === 0 &&
+  failures === 0
+) {
+  recommendedActions.push(
+    "Publish only after a quick human watch-through of the final MP4."
+  );
+}
+
+/*
+ * ---------------------------------------------------------
+ * REPORT
+ * ---------------------------------------------------------
+ */
 
 const report = {
   version: "1.0",
-  generatedAt: new Date().toISOString(),
-  product: pkg.product || null,
-  source: pkg.source || null,
+
+  generatedAt:
+    new Date().toISOString(),
+
+  product:
+    pkg.product || null,
+
+  source:
+    pkg.source || null,
+
   status,
+
   score,
-  summary: { passes, warnings, failures, mediaChecks, mediaFailures },
+
+  summary: {
+    passes,
+    warnings,
+    failures,
+    mediaChecks,
+    mediaFailures
+  },
+
   checks,
-  recommendedActions: [
-    ...(missingFootage.length ? ["Regenerate the demo capture so every scene has real footage."] : []),
-    ...(states.length < 2 ? ["Review the product workflow manually or increase the safe workflow path so BRAG can capture a stronger story."] : []),
-    ...(errors.length ? ["Inspect captured browser console errors before publishing the demo."] : []),
-    ...(longCaptions.length ? ["Shorten long narration or split it across scenes to protect caption readability."] : []),
-    ...(mediaFailures ? ["Re-render the affected output formats and inspect the FFmpeg logs."] : []),
-    ...(warnings === 0 && failures === 0 ? ["Publish only after a quick human watch-through of the final MP4."] : [])
-  ]
+
+  recommendedActions
 };
 
-const md = [
+/*
+ * ---------------------------------------------------------
+ * MARKDOWN REPORT
+ * ---------------------------------------------------------
+ */
+
+const markdownChecks =
+  checks.map(check => {
+    const message =
+      String(check.message || "")
+        .replace(/\|/g, "/");
+
+    const detail =
+      String(check.detail || "")
+        .replace(/\|/g, "/");
+
+    return `| ${check.id} | ${check.severity} | ${message} | ${detail} |`;
+  });
+
+const markdownActions =
+  recommendedActions.map(
+    action => `- ${action}`
+  );
+
+const markdown = [
   "# BRAG QA Report",
   "",
   `**Status:** ${status.toUpperCase()}  `,
@@ -175,7 +877,8 @@ const md = [
   `**Product:** ${pkg.product || "Unknown"}  `,
   `**Generated:** ${report.generatedAt}`,
   "",
-  `## Summary`,
+  "## Summary",
+  "",
   `- Pass: ${passes}`,
   `- Warning: ${warnings}`,
   `- Fail: ${failures}`,
@@ -184,19 +887,65 @@ const md = [
   "",
   "| Check | Severity | Result | Detail |",
   "|---|---|---|---|",
-  ...checks.map(c => `| ${c.id} | ${c.severity} | ${c.message.replace(/\|/g, "/")} | ${(c.detail || "").replace(/\|/g, "/")} |`),
+  ...markdownChecks,
   "",
   "## Recommended actions",
   "",
-  ...report.recommendedActions.map(a => `- ${a}`),
+  ...markdownActions,
   "",
   "## Release rule",
   "",
-  "A **fail** means BRAG should not hand off the MP4 as production-ready. Warnings require judgment. A clean QA report still requires a human watch-through."
+  "A **fail** means BRAG should not hand off the MP4 as production-ready.",
+  "Warnings require judgment.",
+  "A clean QA report still requires a human watch-through."
 ].join("\n");
 
-fs.writeFileSync(path.join(qaDir, "report.json"), JSON.stringify(report, null, 2));
-fs.writeFileSync(path.join(qaDir, "report.md"), md);
+/*
+ * ---------------------------------------------------------
+ * WRITE REPORTS
+ * ---------------------------------------------------------
+ */
 
-console.log(JSON.stringify(report, null, 2));
-if (failures) process.exitCode = 1;
+fs.writeFileSync(
+  path.join(
+    qaDir,
+    "report.json"
+  ),
+  JSON.stringify(
+    report,
+    null,
+    2
+  )
+);
+
+fs.writeFileSync(
+  path.join(
+    qaDir,
+    "report.md"
+  ),
+  markdown
+);
+
+/*
+ * ---------------------------------------------------------
+ * OUTPUT
+ * ---------------------------------------------------------
+ */
+
+console.log(
+  JSON.stringify(
+    report,
+    null,
+    2
+  )
+);
+
+/*
+ * ---------------------------------------------------------
+ * EXIT
+ * ---------------------------------------------------------
+ */
+
+if (failures) {
+  process.exitCode = 1;
+}
