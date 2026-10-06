@@ -20,7 +20,8 @@
     "build": "next build",
     "engine": "node server.js",
     "personal": "node personal.js",
-    "personal:remote": "node remote.js"
+    "personal:remote": "node remote.js",
+    "postinstall": "npx playwright install --with-deps chromium"
   },
   "dependencies": {
     "playwright": "^1.55.0",
