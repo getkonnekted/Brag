@@ -1,6 +1,7 @@
 const { chromium } = require("playwright");
 const fs = require("fs");
 const path = require("path");
+
 const {
   buildIntelligence,
   buildShotPlan,
@@ -21,9 +22,7 @@ function clean(value) {
 }
 
 function isCreationProduct(intelligence) {
-  if (!intelligence) {
-    return false;
-  }
+  if (!intelligence) return false;
 
   if (intelligence.archetype === "creation-workflow") {
     return true;
@@ -54,13 +53,11 @@ async function waitForStability(page) {
     })
     .catch(() => {});
 
-  await page.waitForTimeout(350);
+  await page.waitForTimeout(700);
 }
 
 function isSafeHref(href, origin) {
-  if (!href) {
-    return false;
-  }
+  if (!href) return false;
 
   try {
     const url = new URL(href, origin);
@@ -109,8 +106,7 @@ async function visibleActions(page) {
               element.tagName === "A"
                 ? element.href
                 : null,
-            type:
-              element.getAttribute("type"),
+            type: element.getAttribute("type"),
             visible:
               rect.width > 0 &&
               rect.height > 0,
@@ -131,13 +127,8 @@ async function visibleActions(page) {
 function directorScore(action, intelligence) {
   const text = action.text;
 
-  if (!text) {
-    return -1000;
-  }
-
-  if (BLOCKED.test(text)) {
-    return -1000;
-  }
+  if (!text) return -1000;
+  if (BLOCKED.test(text)) return -1000;
 
   if (action.type === "submit") {
     return -800;
@@ -182,21 +173,6 @@ function directorScore(action, intelligence) {
     score += 40;
   }
 
-  if (
-    intelligence?.archetype === "game" &&
-    /play|start/i.test(text)
-  ) {
-    score += 35;
-  }
-
-  if (
-    intelligence?.archetype ===
-      "commerce" &&
-    /order|explore|start/i.test(text)
-  ) {
-    score += 25;
-  }
-
   return score;
 }
 
@@ -228,26 +204,18 @@ async function inspectForDirector(page, url) {
             const rawText =
               element.innerText ||
               element.value ||
-              element.getAttribute(
-                "aria-label"
-              ) ||
-              element.getAttribute(
-                "title"
-              ) ||
+              element.getAttribute("aria-label") ||
+              element.getAttribute("title") ||
               "";
 
-            const text = String(rawText)
-              .replace(/\s+/g, " ")
-              .trim()
-              .slice(0, 140);
-
             return {
-              text
+              text: String(rawText)
+                .replace(/\s+/g, " ")
+                .trim()
+                .slice(0, 140)
             };
           })
-          .filter(
-            (item) => item.text
-          )
+          .filter((item) => item.text)
       ),
 
     links: await page
@@ -262,7 +230,6 @@ async function inspectForDirector(page, url) {
               .replace(/\s+/g, " ")
               .trim()
               .slice(0, 140),
-
             href: element.href
           }))
           .filter(
@@ -297,10 +264,6 @@ async function findCanvas(page) {
               index,
               tag:
                 element.tagName.toLowerCase(),
-              className:
-                element.className?.baseVal ||
-                element.className ||
-                "",
               x: rect.x,
               y: rect.y,
               width: rect.width,
@@ -331,10 +294,6 @@ async function findCanvas(page) {
     }
   }
 
-  if (!best) {
-    return null;
-  }
-
   return best;
 }
 
@@ -347,7 +306,7 @@ async function performCanvasCreation(
     return {
       success: false,
       reason:
-        "Current product is not classified as a creation product."
+        "Product is not classified as a creation workflow."
     };
   }
 
@@ -357,7 +316,7 @@ async function performCanvasCreation(
     return {
       success: false,
       reason:
-        "No sufficiently large canvas or SVG surface was found."
+        "No usable canvas was found."
     };
   }
 
@@ -375,31 +334,31 @@ async function performCanvasCreation(
     return {
       success: false,
       reason:
-        "Canvas was found but its bounding box could not be read."
+        "Canvas bounding box unavailable."
     };
   }
 
   const margin = 80;
 
-  const usableLeft =
+  const left =
     box.x + margin;
 
-  const usableTop =
+  const top =
     box.y + margin;
 
-  const usableRight =
+  const right =
     box.x +
     box.width -
     margin;
 
-  const usableBottom =
+  const bottom =
     box.y +
     box.height -
     margin;
 
   if (
-    usableRight <= usableLeft ||
-    usableBottom <= usableTop
+    right <= left ||
+    bottom <= top
   ) {
     return {
       success: false,
@@ -409,23 +368,19 @@ async function performCanvasCreation(
   }
 
   const centerX =
-    (usableLeft + usableRight) /
-    2;
+    (left + right) / 2;
 
   const centerY =
-    (usableTop + usableBottom) /
-    2;
+    (top + bottom) / 2;
 
-  const shapeWidth = Math.min(
+  const width = Math.min(
     260,
-    (usableRight - usableLeft) *
-      0.32
+    (right - left) * 0.32
   );
 
-  const shapeHeight = Math.min(
+  const height = Math.min(
     170,
-    (usableBottom - usableTop) *
-      0.28
+    (bottom - top) * 0.28
   );
 
   let startX;
@@ -435,58 +390,49 @@ async function performCanvasCreation(
 
   if (creationStep === 1) {
     startX =
-      centerX -
-      shapeWidth / 2;
+      centerX - width / 2;
 
     startY =
-      centerY -
-      shapeHeight / 2;
+      centerY - height / 2;
 
     endX =
-      centerX +
-      shapeWidth / 2;
+      centerX + width / 2;
 
     endY =
-      centerY +
-      shapeHeight / 2;
+      centerY + height / 2;
   } else if (creationStep === 2) {
     startX =
-      centerX -
-      shapeWidth / 2;
+      centerX - width / 2;
 
     startY =
-      centerY +
-      shapeHeight * 0.75;
+      centerY + height * 0.75;
 
     endX =
-      centerX +
-      shapeWidth / 2;
+      centerX + width / 2;
 
     endY =
-      centerY +
-      shapeHeight * 0.75;
+      centerY + height * 0.75;
   } else {
     startX =
-      centerX -
-      shapeWidth * 0.8;
+      centerX - width * 0.8;
 
     startY =
-      centerY -
-      shapeHeight * 0.9;
+      centerY - height * 0.9;
 
     endX =
-      centerX +
-      shapeWidth * 0.8;
+      centerX + width * 0.8;
 
     endY =
-      centerY +
-      shapeHeight * 0.9;
+      centerY + height * 0.9;
   }
 
   await page.mouse.move(
     startX,
-    startY
+    startY,
+    { steps: 8 }
   );
+
+  await page.waitForTimeout(300);
 
   await page.mouse.down();
 
@@ -494,13 +440,13 @@ async function performCanvasCreation(
     endX,
     endY,
     {
-      steps: 12
+      steps: 24
     }
   );
 
   await page.mouse.up();
 
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(800);
 
   return {
     success: true,
@@ -515,19 +461,25 @@ async function performCanvasCreation(
           : "Add a connecting visual",
 
     canvas: {
-      selector: canvas.selector,
-      tag: canvas.tag,
+      selector:
+        canvas.selector,
       x: Math.round(box.x),
       y: Math.round(box.y),
-      width: Math.round(box.width),
-      height: Math.round(box.height)
+      width:
+        Math.round(box.width),
+      height:
+        Math.round(box.height)
     },
 
     coordinates: {
-      startX: Math.round(startX),
-      startY: Math.round(startY),
-      endX: Math.round(endX),
-      endY: Math.round(endY)
+      startX:
+        Math.round(startX),
+      startY:
+        Math.round(startY),
+      endX:
+        Math.round(endX),
+      endY:
+        Math.round(endY)
     }
   };
 }
@@ -537,7 +489,8 @@ async function captureState(
   outputDir,
   step,
   shot,
-  cursor = null
+  cursor,
+  recordingStartedAt
 ) {
   const screenshot =
     `step-${String(step).padStart(
@@ -561,7 +514,8 @@ async function captureState(
   return {
     step,
 
-    type: "state-captured",
+    type:
+      "state-captured",
 
     timestamp:
       new Date().toISOString(),
@@ -571,14 +525,25 @@ async function captureState(
     title:
       await page.title(),
 
-    headings: headings
-      .map(clean)
-      .filter(Boolean)
-      .slice(0, 8),
+    headings:
+      headings
+        .map(clean)
+        .filter(Boolean)
+        .slice(0, 8),
 
     screenshot,
 
-    cursor,
+    cursor:
+      cursor || null,
+
+    recordingMs:
+      recordingStartedAt
+        ? Math.max(
+            0,
+            Date.now() -
+              recordingStartedAt
+          )
+        : null,
 
     shot: shot
       ? {
@@ -635,7 +600,11 @@ async function runWorkflow(
         dir: path.join(
           outputDir,
           "video"
-        )
+        ),
+        size: {
+          width: 1440,
+          height: 900
+        }
       }
     });
 
@@ -645,17 +614,15 @@ async function runWorkflow(
   const origin =
     new URL(url).origin;
 
-  const errors = [];
-  const requestFailures = [];
-
-  let pageCrashed = false;
-
   const startedAt =
     Date.now();
 
+  const errors = [];
+  const requestFailures = [];
   const steps = [];
   const visited = new Set();
 
+  let pageCrashed = false;
   let intelligence = null;
   let shotPlan = null;
 
@@ -700,7 +667,6 @@ async function runWorkflow(
     "crash",
     () => {
       pageCrashed = true;
-
       errors.push(
         "Page crashed during capture."
       );
@@ -758,16 +724,11 @@ async function runWorkflow(
           )
         ];
 
-      const actionStartedAt =
-        Date.now();
-
       const beforeUrl =
         page.url();
 
       const beforeScreenshot =
-        `step-${String(
-          step
-        ).padStart(
+        `step-${String(step).padStart(
           2,
           "0"
         )}-before.png`;
@@ -781,40 +742,31 @@ async function runWorkflow(
       });
 
       /*
-       * CREATION PRODUCTS
-       *
-       * For Excalidraw-like products,
-       * do not hunt for generic DOM
-       * buttons such as "Open Ctrl+O".
-       *
-       * The director should control the
-       * actual creative surface.
+       * Creation products such as
+       * Excalidraw get direct canvas
+       * interaction rather than generic
+       * button clicking.
        */
-      if (
-        creationProduct &&
-        step >= 1
-      ) {
-        creationStep += 1;
+      if (creationProduct) {
+        creationStep++;
 
-        const canvasResult =
+        const result =
           await performCanvasCreation(
             page,
             intelligence,
             creationStep
           );
 
-        if (
-          canvasResult.success
-        ) {
+        if (result.success) {
           const cursor =
-            canvasResult.coordinates
+            result.coordinates
               ? {
                   x:
-                    canvasResult
+                    result
                       .coordinates
                       .endX,
                   y:
-                    canvasResult
+                    result
                       .coordinates
                       .endY
                 }
@@ -826,30 +778,27 @@ async function runWorkflow(
               outputDir,
               step,
               shot,
-              cursor
+              cursor,
+              startedAt
             );
+
+          state.action = {
+            type:
+              result.type,
+
+            text:
+              result.action
+          };
+
+          state.canvas =
+            result.canvas;
+
+          state.coordinates =
+            result.coordinates;
 
           state.urlChanged =
             beforeUrl !==
             state.url;
-
-          state.elapsedMs =
-            Date.now() -
-            actionStartedAt;
-
-          state.action = {
-            type:
-              canvasResult.type,
-
-            text:
-              canvasResult.action
-          };
-
-          state.canvas =
-            canvasResult.canvas;
-
-          state.coordinates =
-            canvasResult.coordinates;
 
           state.evaluation =
             evaluateCapturedState(
@@ -868,10 +817,9 @@ async function runWorkflow(
 
             action: {
               type:
-                canvasResult.type,
-
+                result.type,
               text:
-                canvasResult.action
+                result.action
             },
 
             director: {
@@ -895,21 +843,15 @@ async function runWorkflow(
                 }
               : null,
 
-            url: page.url(),
-
             screenshot:
-              beforeScreenshot
+              beforeScreenshot,
+
+            url:
+              page.url()
           });
 
-          steps.push(
-            state
-          );
+          steps.push(state);
 
-          /*
-           * Once the director sees
-           * useful canvas evidence,
-           * hold the final state.
-           */
           if (
             state.evaluation
               ?.proof
@@ -931,12 +873,6 @@ async function runWorkflow(
           continue;
         }
 
-        /*
-         * If a creation surface was not
-         * found, fall back to safe DOM
-         * actions rather than failing
-         * the entire capture.
-         */
         steps.push({
           step,
 
@@ -944,10 +880,13 @@ async function runWorkflow(
             "canvas-unavailable",
 
           reason:
-            canvasResult.reason
+            result.reason
         });
       }
 
+      /*
+       * Safe DOM fallback.
+       */
       const actions =
         await visibleActions(
           page
@@ -987,18 +926,17 @@ async function runWorkflow(
         steps.push({
           step,
 
-          type: "stop",
-
-          timestamp:
-            new Date().toISOString(),
+          type:
+            "stop",
 
           reason:
             "No new director-approved safe action found",
 
-          url: page.url(),
-
           screenshot:
-            beforeScreenshot
+            beforeScreenshot,
+
+          url:
+            page.url()
         });
 
         break;
@@ -1007,57 +945,6 @@ async function runWorkflow(
       visited.add(
         `${page.url()}|${target.text}|${target.href || ""}`
       );
-
-      steps.push({
-        step,
-
-        type:
-          "action-selected",
-
-        timestamp:
-          new Date().toISOString(),
-
-        action: {
-          text:
-            target.text,
-
-          tag:
-            target.tag,
-
-          href:
-            target.href || null
-        },
-
-        director: {
-          archetype:
-            intelligence.archetype,
-
-          promise:
-            intelligence.promise,
-
-          strongestAction:
-            intelligence.strongestAction,
-
-          score:
-            target.score
-        },
-
-        shot: shot
-          ? {
-              id: shot.id,
-              type: shot.type,
-              goal: shot.goal,
-              plannedDuration:
-                shot.duration
-            }
-          : null,
-
-        url:
-          page.url(),
-
-        screenshot:
-          beforeScreenshot
-      });
 
       const locator =
         page
@@ -1070,98 +957,46 @@ async function runWorkflow(
           })
           .first();
 
-      let actionSucceeded =
-        false;
+      let success = false;
 
-      let actionError =
-        null;
-
-      for (
-        let attempt = 1;
-        attempt <= 2;
-        attempt++
-      ) {
-        try {
-          if (
-            target.tag === "a" &&
-            !isSafeHref(
-              target.href,
-              origin
-            )
-          ) {
-            throw new Error(
-              "Destination is outside approved origin or unsafe."
-            );
-          }
-
-          await locator.click({
-            timeout: 8000
-          });
-
-          actionSucceeded =
-            true;
-
-          break;
-        } catch (error) {
-          actionError =
-            error;
-
-          steps.push({
-            step,
-
-            type:
-              "action-retry",
-
-            attempt,
-
-            timestamp:
-              new Date().toISOString(),
-
-            action: {
-              text:
-                target.text,
-
-              tag:
-                target.tag
-            },
-
-            reason:
-              clean(
-                error.message
-              )
-          });
-
-          await waitForStability(
-            page
+      try {
+        if (
+          target.tag === "a" &&
+          !isSafeHref(
+            target.href,
+            origin
+          )
+        ) {
+          throw new Error(
+            "Unsafe navigation target."
           );
         }
-      }
 
-      if (!actionSucceeded) {
+        await locator.click({
+          timeout: 8000
+        });
+
+        success = true;
+      } catch (error) {
         steps.push({
           step,
 
           type:
             "action-failed",
 
-          timestamp:
-            new Date().toISOString(),
-
           action: {
             text:
               target.text,
-
             tag:
               target.tag
           },
 
           reason:
-            clean(
-              actionError?.message ||
-                "Action failed"
-            )
+            clean(error.message)
         });
+      }
 
+      if (!success) {
         continue;
       }
 
@@ -1169,35 +1004,26 @@ async function runWorkflow(
         page
       );
 
-      const afterUrl =
-        page.url();
-
       if (
-        !afterUrl.startsWith(
-          origin
-        )
+        !page
+          .url()
+          .startsWith(origin)
       ) {
         steps.push({
           step,
 
-          type: "blocked",
+          type:
+            "blocked",
 
           reason:
             "Navigation left approved origin.",
 
-          url: afterUrl
+          url:
+            page.url()
         });
 
         break;
       }
-
-      const targetX =
-        target.x +
-        target.width / 2;
-
-      const targetY =
-        target.y +
-        target.height / 2;
 
       const state =
         await captureState(
@@ -1206,31 +1032,56 @@ async function runWorkflow(
           step,
           shot,
           {
-            x: targetX,
-            y: targetY
-          }
+            x:
+              target.x +
+              target.width /
+                2,
+
+            y:
+              target.y +
+              target.height /
+                2
+          },
+          startedAt
         );
 
-      state.urlChanged =
-        beforeUrl !==
-        afterUrl;
-
-      state.elapsedMs =
-        Date.now() -
-        actionStartedAt;
-
       state.action = {
-        type: "dom-click",
+        type:
+          "dom-click",
 
         text:
           target.text
       };
+
+      state.urlChanged =
+        beforeUrl !==
+        state.url;
 
       state.evaluation =
         evaluateCapturedState(
           state,
           intelligence
         );
+
+      steps.push({
+        step,
+
+        type:
+          "action-selected",
+
+        action: {
+          text:
+            target.text,
+          tag:
+            target.tag,
+          href:
+            target.href ||
+            null
+        },
+
+        screenshot:
+          beforeScreenshot
+      });
 
       steps.push(state);
 
@@ -1252,87 +1103,14 @@ async function runWorkflow(
 
         break;
       }
-
-      if (
-        state.evaluation
-          ?.decision ===
-        "replan"
-      ) {
-        const freshActions =
-          await visibleActions(
-            page
-          );
-
-        const alternatives =
-          freshActions
-            .map((action) => ({
-              ...action,
-
-              score:
-                directorScore(
-                  action,
-                  intelligence
-                )
-            }))
-            .filter(
-              (action) =>
-                action.score > 0
-            )
-            .sort(
-              (a, b) =>
-                b.score -
-                  a.score ||
-                a.y - b.y
-            );
-
-        const alternative =
-          alternatives.find(
-            (action) =>
-              !visited.has(
-                `${page.url()}|${action.text}|${action.href || ""}`
-              )
-          );
-
-        if (alternative) {
-          steps.push({
-            step,
-
-            type:
-              "replan",
-
-            timestamp:
-              new Date().toISOString(),
-
-            from:
-              target.text,
-
-            to:
-              alternative.text,
-
-            reason:
-              state.evaluation
-                .reason
-          });
-        } else {
-          steps.push({
-            step,
-
-            type:
-              "replan-stop",
-
-            reason:
-              "No alternate safe action available."
-          });
-
-          break;
-        }
-      }
     }
 
     const manifest = {
-      version: "1.7",
+      version:
+        "1.8",
 
-      source: url,
+      source:
+        url,
 
       capturedAt:
         new Date().toISOString(),
@@ -1396,11 +1174,8 @@ async function runWorkflow(
         creationCanvasEnabled:
           true,
 
-        safeActionAllowlist:
-          SAFE.source,
-
-        blockedActionPattern:
-          BLOCKED.source,
+        screenshotsAreEvidenceOnly:
+          true,
 
         maxSteps
       }
@@ -1412,50 +1187,51 @@ async function runWorkflow(
     await context.close();
 
     if (recordedVideo) {
-      try {
-        const videoPath =
-          await recordedVideo.path();
+      const videoPath =
+        await recordedVideo.path();
 
-        const targetPath =
-          path.join(
-            outputDir,
-            "real-product-footage.webm"
-          );
-
-        fs.copyFileSync(
-          videoPath,
-          targetPath
+      const targetPath =
+        path.join(
+          outputDir,
+          "real-product-footage.webm"
         );
 
-        manifest.captureHealth.recordingValid =
-          fs.existsSync(
-            targetPath
-          ) &&
-          fs.statSync(
-            targetPath
-          ).size > 0;
+      fs.copyFileSync(
+        videoPath,
+        targetPath
+      );
 
-        manifest.realFootage = {
-          file:
-            "real-product-footage.webm",
+      const valid =
+        fs.existsSync(
+          targetPath
+        ) &&
+        fs.statSync(
+          targetPath
+        ).size > 0;
 
-          format:
-            "webm",
+      manifest.captureHealth.recordingValid =
+        valid;
 
-          source:
-            "playwright-browser-recording",
+      manifest.realFootage = {
+        file:
+          "real-product-footage.webm",
 
-          path:
-            targetPath
-        };
-      } catch (error) {
-        manifest.realFootage = {
-          file: null,
+        format:
+          "webm",
 
-          error:
-            error.message
-        };
-      }
+        source:
+          "playwright-browser-recording",
+
+        path:
+          targetPath,
+
+        size:
+          valid
+            ? fs.statSync(
+                targetPath
+              ).size
+            : 0
+      };
     }
 
     fs.writeFileSync(
@@ -1473,10 +1249,16 @@ async function runWorkflow(
     await browser.close();
 
     return manifest;
-  } finally {
+  } catch (error) {
+    await context
+      .close()
+      .catch(() => {});
+
     await browser
       .close()
       .catch(() => {});
+
+    throw error;
   }
 }
 
@@ -1507,7 +1289,8 @@ if (require.main === module) {
     })
     .catch((error) => {
       console.error(
-        error.stack || error
+        error.stack ||
+          error
       );
 
       process.exit(1);
