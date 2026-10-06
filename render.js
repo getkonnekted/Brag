@@ -58,6 +58,25 @@ const formats = {
   }
 };
 
+/*
+ * Railway workers can have limited CPU/RAM.
+ *
+ * Without these settings libx264 may automatically use
+ * dozens of threads. That caused FFmpeg to be killed
+ * with SIGKILL during the final xfade composition.
+ */
+const ENCODE_ARGS = [
+  "-c:v",
+  "libx264",
+  "-preset",
+  "ultrafast",
+  "-threads",
+  "2"
+];
+
+const FPS = 30;
+const TRANSITION_DURATION = 0.35;
+
 function escFilter(value) {
   return String(value || "")
     .replace(/\\/g, "\\\\")
@@ -68,7 +87,9 @@ function escFilter(value) {
 function writeText(file, value) {
   fs.writeFileSync(
     file,
-    String(value || "").replace(/\r?\n/g, " ").trim() || " "
+    String(value || "")
+      .replace(/\r?\n/g, " ")
+      .trim() || " "
   );
 }
 
@@ -81,7 +102,9 @@ function sourceFile(scene) {
 }
 
 function interactionFilters(interaction, size) {
-  if (!interaction || !interaction.focus) return [];
+  if (!interaction || !interaction.focus) {
+    return [];
+  }
 
   const x = Math.round(
     Number(interaction.focus.x) * size.width / 1280
@@ -97,7 +120,9 @@ function interactionFilters(interaction, size) {
 
   const radius = Math.max(
     18,
-    Math.round(Math.min(size.width, size.height) * 0.045)
+    Math.round(
+      Math.min(size.width, size.height) * 0.045
+    )
   );
 
   const left = Math.max(0, x - radius);
@@ -240,10 +265,10 @@ function buildScene(
       "Skipping scene without source footage:",
       scene.id || index
     );
+
     return null;
   }
 
-  const fps = 30;
   const duration =
     Number(scene.duration) || 5;
 
@@ -272,23 +297,27 @@ function buildScene(
   );
 
   /*
-   * IMPORTANT:
-   * This must correctly identify real browser recordings
-   * such as .webm and .mp4.
+   * Browser recordings are video files.
+   * Screenshots are treated as still images.
    */
   const isVideo =
     /\.(webm|mp4|mov|mkv)$/i.test(input);
 
-  const interaction = interactionFilters(
-    scene.interaction,
-    size
-  );
+  const interaction =
+    interactionFilters(
+      scene.interaction,
+      size
+    );
 
   const labelFontSize =
-    formatKey === "9x16" ? 30 : 26;
+    formatKey === "9x16"
+      ? 30
+      : 26;
 
   const captionFontSize =
-    formatKey === "9x16" ? 30 : 28;
+    formatKey === "9x16"
+      ? 30
+      : 28;
 
   const captionY =
     formatKey === "9x16"
@@ -317,10 +346,10 @@ function buildScene(
 
   if (isVideo) {
     /*
-     * Real browser footage.
+     * REAL BROWSER FOOTAGE
      *
-     * Do NOT use -loop 1 here.
-     * WebM/MP4 is already a video stream.
+     * Do not use -loop 1.
+     * WebM/MP4 already contains a video stream.
      */
     videoFilters = [
       "scale=" +
@@ -338,7 +367,7 @@ function buildScene(
     ];
   } else {
     /*
-     * Static screenshot.
+     * STATIC SCREENSHOT
      */
     videoFilters = [
       "scale=" +
@@ -355,7 +384,7 @@ function buildScene(
       motionFilter(
         scene.motion,
         duration,
-        fps,
+        FPS,
         size.width,
         size.height
       ),
@@ -372,40 +401,56 @@ function buildScene(
   const args = isVideo
     ? [
         "-y",
+
         "-stream_loop",
         "-1",
+
         "-i",
         input,
+
         "-t",
         String(duration),
+
         "-vf",
         videoFilters.join(","),
+
         "-an",
+
         "-r",
-        String(fps),
-        "-c:v",
-        "libx264",
+        String(FPS),
+
+        ...ENCODE_ARGS,
+
         "-pix_fmt",
         "yuv420p",
+
         output
       ]
     : [
         "-y",
+
         "-loop",
         "1",
+
         "-i",
         input,
+
         "-t",
         String(duration),
+
         "-vf",
         videoFilters.join(","),
+
         "-an",
+
         "-r",
-        String(fps),
-        "-c:v",
-        "libx264",
+        String(FPS),
+
+        ...ENCODE_ARGS,
+
         "-pix_fmt",
         "yuv420p",
+
         output
       ];
 
@@ -421,7 +466,13 @@ function buildScene(
 
   console.log(
     "Source type:",
-    isVideo ? "VIDEO" : "IMAGE"
+    isVideo
+      ? "VIDEO"
+      : "IMAGE"
+  );
+
+  console.log(
+    "Encoder: libx264 / ultrafast / 2 threads"
   );
 
   execFileSync(
@@ -470,7 +521,10 @@ function buildAudio() {
         return;
       }
 
-      inputs.push("-i", file);
+      inputs.push(
+        "-i",
+        file
+      );
 
       const duration =
         Number(scene.targetDuration) || 5;
@@ -498,13 +552,16 @@ function buildAudio() {
     i < inputs.length / 2;
     i++
   ) {
-    const out = "[af" + i + "]";
+    const out =
+      "[af" + i + "]";
 
     filters.push(
       last +
         "[a" +
         i +
-        "]acrossfade=d=0.35:c1=tri:c2=tri" +
+        "]acrossfade=d=" +
+        TRANSITION_DURATION +
+        ":c1=tri:c2=tri" +
         out
     );
 
@@ -520,13 +577,18 @@ function buildAudio() {
     "ffmpeg",
     [
       "-y",
+
       ...inputs,
+
       "-filter_complex",
       filters.join(";"),
+
       "-map",
       last,
+
       "-c:a",
       "pcm_s16le",
+
       output
     ],
     {
@@ -553,14 +615,18 @@ function concatClips(
 
   clips.forEach(
     clip => {
-      inputs.push("-i", clip.output);
+      inputs.push(
+        "-i",
+        clip.output
+      );
     }
   );
 
   const parts = [];
 
   let last = "[0:v]";
-  let elapsed = clips[0].duration;
+  let elapsed =
+    clips[0].duration;
 
   for (
     let i = 1;
@@ -576,13 +642,16 @@ function concatClips(
     const offset =
       Math.max(
         0,
-        elapsed - 0.35
+        elapsed -
+          TRANSITION_DURATION
       );
 
     parts.push(
       last +
         next +
-        "xfade=transition=fade:duration=0.35:offset=" +
+        "xfade=transition=fade:duration=" +
+        TRANSITION_DURATION +
+        ":offset=" +
         offset.toFixed(3) +
         out
     );
@@ -591,22 +660,27 @@ function concatClips(
 
     elapsed +=
       clips[i].duration -
-      0.35;
+      TRANSITION_DURATION;
   }
 
-  const finalPath = path.join(
-    outDir,
-    "brag-demo-" +
-      formatKey +
-      ".mp4"
-  );
+  const finalPath =
+    path.join(
+      outDir,
+      "brag-demo-" +
+        formatKey +
+        ".mp4"
+    );
 
   const args = [
     "-y",
+
     ...inputs,
 
     ...(narration
-      ? ["-i", narration]
+      ? [
+          "-i",
+          narration
+        ]
       : []),
 
     "-filter_complex",
@@ -618,21 +692,22 @@ function concatClips(
     ...(narration
       ? [
           "-map",
-          String(clips.length) + ":a",
+          String(clips.length) +
+            ":a",
+
           "-shortest"
         ]
       : []),
 
     "-r",
-    "30",
+    String(FPS),
 
     "-s",
     size.width +
       "x" +
       size.height,
 
-    "-c:v",
-    "libx264",
+    ...ENCODE_ARGS,
 
     ...(narration
       ? [
@@ -641,7 +716,9 @@ function concatClips(
           "-b:a",
           "160k"
         ]
-      : ["-an"]),
+      : [
+          "-an"
+        ]),
 
     "-pix_fmt",
     "yuv420p",
@@ -651,6 +728,16 @@ function concatClips(
 
     finalPath
   ];
+
+  console.log(
+    "\nComposing final " +
+      formatKey +
+      " video..."
+  );
+
+  console.log(
+    "Encoder: libx264 / ultrafast / 2 threads"
+  );
 
   execFileSync(
     "ffmpeg",
@@ -663,10 +750,11 @@ function concatClips(
   return finalPath;
 }
 
-const planPath = path.join(
-  path.dirname(packagePath),
-  "edit-plan.json"
-);
+const planPath =
+  path.join(
+    path.dirname(packagePath),
+    "edit-plan.json"
+  );
 
 if (!fs.existsSync(planPath)) {
   execFileSync(
@@ -681,12 +769,13 @@ if (!fs.existsSync(planPath)) {
   );
 }
 
-const plan = JSON.parse(
-  fs.readFileSync(
-    planPath,
-    "utf8"
-  )
-);
+const plan =
+  JSON.parse(
+    fs.readFileSync(
+      planPath,
+      "utf8"
+    )
+  );
 
 const scenes =
   plan.scenes ||
