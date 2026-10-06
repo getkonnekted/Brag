@@ -1,4 +1,4 @@
-# BRAG
+# demo.
 
 Product-to-video demo engine.
 
@@ -8,7 +8,7 @@ Product-to-video demo engine.
 
 **AI should be the director, not the camera.**
 
-BRAG uses the real product as footage. It inspects a product, discovers a bounded workflow, captures real states, builds a demo story, plans motion, generates optional local narration, renders MP4s, and quality-checks the result.
+demo. uses the real product as footage. It inspects a product, discovers a bounded workflow, captures real states, builds a demo story, plans motion, generates optional local narration, renders MP4s, and quality-checks the result.
 
 ## Pipeline
 
@@ -18,7 +18,7 @@ BRAG uses the real product as footage. It inspects a product, discovers a bounde
 
 The Director can now evaluate captured states during the browser run.
 
-After each meaningful state, BRAG classifies the result as:
+After each meaningful state, demo. classifies the result as:
 
 - `hold-result`: strong proof was found, so the run can stop and preserve the result
 - `continue`: the state is meaningful but more evidence is needed
@@ -28,7 +28,7 @@ This makes capture adaptive rather than purely step-count driven.
 
 ## v1.4
 
-BRAG now creates a Director Shot Plan before browser capture.
+demo. now creates a Director Shot Plan before browser capture.
 
 The plan defines the intended visual beats:
 
@@ -50,7 +50,7 @@ Camera:   How can I safely capture it?
 
 ## v1.3
 
-BRAG now preserves the real browser recording produced by Playwright.
+demo. now preserves the real browser recording produced by Playwright.
 
 The demo package treats that recording as primary product footage for the product-orientation scene, while state screenshots remain useful for precise workflow/result moments.
 
@@ -88,7 +88,7 @@ npm run qa
 
 The browser runner is now Director-guided.
 
-Before interacting with a product, BRAG derives the product archetype, promise, strongest visible action, and workflow intent. The runner uses those signals to rank safe actions instead of relying only on generic CTA ordering.
+Before interacting with a product, demo. derives the product archetype, promise, strongest visible action, and workflow intent. The runner uses those signals to rank safe actions instead of relying only on generic CTA ordering.
 
 Each selected action records the Director decision and captures the click target coordinates for later visual emphasis.
 
@@ -108,7 +108,7 @@ npm run run -- https://your-product.com 4
 
 ## v1.1
 
-BRAG's Director now builds a product-intelligence layer before story selection. It classifies the product archetype, extracts the product promise, identifies the strongest visible action, proposes the core workflow, and defines the proof moment.
+demo.'s Director now builds a product-intelligence layer before story selection. It classifies the product archetype, extracts the product promise, identifies the strongest visible action, proposes the core workflow, and defines the proof moment.
 
 Run:
 
@@ -121,7 +121,7 @@ The intelligence is deterministic and evidence-based. It does not invent product
 
 ## v1.0
 
-BRAG now has a local Director QA layer.
+demo. now has a local Director QA layer.
 
 Run:
 
@@ -153,7 +153,7 @@ The report produces a 0–100 score and a release status:
 - **WARNING**: usable, but human review is required
 - **FAIL**: do not hand off the MP4 yet
 
-A clean QA report is not a substitute for watching the final video. BRAG is a production assistant, not an autonomous publisher.
+A clean QA report is not a substitute for watching the final video. demo. is a production assistant, not an autonomous publisher.
 
 ## v0.9
 
@@ -165,11 +165,11 @@ npm run render
 npm run qa
 ```
 
-Without Piper, BRAG can render silent video.
+Without Piper, demo. can render silent video.
 
 ## Personal worker
 
-BRAG is personal-first. The browser automation and video rendering stay on your machine so there is no cloud worker bill while the product is being proven.
+demo. is personal-first. The browser automation and video rendering stay on your machine so there is no cloud worker bill while the product is being proven.
 
 After the first setup:
 
@@ -180,16 +180,16 @@ npm run build
 npm run personal
 ```
 
-`npm run personal` starts both the BRAG engine and the web control surface, waits for them to become healthy, and opens BRAG in your browser. You no longer need to start `npm run engine` separately.
+`npm run personal` starts both the demo. engine and the web control surface, waits for them to become healthy, and opens demo. in your browser. You no longer need to start `npm run engine` separately.
 
 The architecture is intentionally portable:
 
 ```
 Personal today
-Vercel UI / local UI → BRAG Personal Worker → Playwright + Chromium → FFmpeg → video
+Vercel UI / local UI → demo. Personal Worker → Playwright + Chromium → FFmpeg → video
 
 Commercial later
-BRAG Web App → BRAG Cloud Worker → Playwright + Chromium → FFmpeg → video
+demo. Web App → demo. Cloud Worker → Playwright + Chromium → FFmpeg → video
 ```
 
 The same engine can move from the personal worker to a dedicated cloud worker later. That keeps the early version free/open-source while avoiding a throwaway architecture.
@@ -217,4 +217,4 @@ npm run qa
 
 Outputs live under `output/`.
 
-BRAG is personal and local. No accounts, billing, tenants, or SaaS layer.
+demo. is personal and local. No accounts, billing, tenants, or SaaS layer.
