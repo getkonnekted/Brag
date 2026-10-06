@@ -747,21 +747,3 @@ for (
 console.log(
   "\nBRAG v0.8 render complete."
 );
-```
-
-### One important detail
-
-I also added logging:
-
-```text
-Source type: VIDEO
-```
-
-So on the next run, we should see:
-
-```text
-Source: /app/output/recording/real-product-footage.webm
-Source type: VIDEO
-```
-
-**Commit this as `Fix video source detection in renderer`**, wait for Railway to redeploy, then click **Render demo** again. No new capture is necessary.
