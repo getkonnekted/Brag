@@ -1,883 +1,965 @@
 const fs = require("fs");
 const path = require("path");
 const {
-  execFileSync
+execFileSync
 } = require("child_process");
 
 const packagePath =
-  process.argv[2] ||
-  "output/demo/package.json";
+process.argv[2] ||
+"output/demo/package.json";
 
 if (
-  !fs.existsSync(
-    packagePath
-  )
+!fs.existsSync(
+packagePath
+)
 ) {
-  console.error(
-    "Demo package not found."
-  );
+console.error(
+"Demo package not found."
+);
 
-  process.exit(1);
+process.exit(1);
 }
 
 try {
-  execFileSync(
-    "ffmpeg",
-    ["-version"],
-    {
-      stdio:
-        "ignore"
-    }
-  );
+execFileSync(
+"ffmpeg",
+["-version"],
+{
+stdio:
+"ignore"
+}
+);
 } catch {
-  console.error(
-    "FFmpeg is required."
-  );
+console.error(
+"FFmpeg is required."
+);
 
-  process.exit(2);
+process.exit(2);
 }
 
 const pkg =
-  JSON.parse(
-    fs.readFileSync(
-      packagePath,
-      "utf8"
-    )
-  );
+JSON.parse(
+fs.readFileSync(
+packagePath,
+"utf8"
+)
+);
 
 const root =
-  path.join(
-    path.dirname(
-      packagePath
-    ),
-    ".."
-  );
+path.join(
+path.dirname(
+packagePath
+),
+".."
+);
 
 const recordingDir =
-  path.join(
-    root,
-    "recording"
-  );
+path.join(
+root,
+"recording"
+);
 
 const audioDir =
-  path.join(
-    path.dirname(
-      packagePath
-    ),
-    "audio"
-  );
+path.join(
+path.dirname(
+packagePath
+),
+"audio"
+);
 
 const audioManifestPath =
-  path.join(
-    audioDir,
-    "manifest.json"
-  );
+path.join(
+audioDir,
+"manifest.json"
+);
 
 const audioManifest =
-  fs.existsSync(
-    audioManifestPath
-  )
-    ? JSON.parse(
-        fs.readFileSync(
-          audioManifestPath,
-          "utf8"
-        )
-      )
-    : null;
+fs.existsSync(
+audioManifestPath
+)
+? JSON.parse(
+fs.readFileSync(
+audioManifestPath,
+"utf8"
+)
+)
+: null;
 
 const outDir =
-  path.join(
-    root,
-    "render"
-  );
+path.join(
+root,
+"render"
+);
 
 const workDir =
-  path.join(
-    outDir,
-    ".scenes"
-  );
+path.join(
+outDir,
+".scenes"
+);
 
 fs.mkdirSync(
-  workDir,
-  {
-    recursive: true
-  }
+workDir,
+{
+recursive: true
+}
 );
 
 const formats = {
-  "16x9": {
-    width: 1280,
-    height: 720
-  },
+"16x9": {
+width: 1280,
+height: 720
+},
 
-  "9x16": {
-    width: 720,
-    height: 1280
-  },
+"9x16": {
+width: 720,
+height: 1280
+},
 
-  "1x1": {
-    width: 1080,
-    height: 1080
-  }
+"1x1": {
+width: 1080,
+height: 1080
+}
 };
 
 /*
- * Keep Railway memory usage predictable.
- */
-const ENCODE_ARGS = [
+
+* Keep Railway memory usage predictable.
+  */
+  const ENCODE_ARGS = [
   "-c:v",
   "libx264",
 
-  "-preset",
-  "ultrafast",
+"-preset",
+"ultrafast",
 
-  "-threads",
-  "2"
+"-threads",
+"2"
 ];
 
 const FPS = 30;
 
 const TRANSITION =
-  0.35;
+0.35;
 
 function esc(value) {
-  return String(
-    value || ""
-  )
-    .replace(
-      /\\/g,
-      "\\\\"
-    )
-    .replace(
-      /:/g,
-      "\\:"
-    )
-    .replace(
-      /'/g,
-      "\\'"
-    );
+return String(
+value || ""
+)
+.replace(
+/\/g,
+"\\"
+)
+.replace(
+/:/g,
+"\:"
+)
+.replace(
+/'/g,
+"\'"
+);
 }
 
 function writeText(
-  file,
-  value
+file,
+value
 ) {
-  fs.writeFileSync(
-    file,
-    String(
-      value || ""
-    )
-      .replace(
-        /\r?\n/g,
-        " "
-      )
-      .trim() ||
-      " "
-  );
+fs.writeFileSync(
+file,
+String(
+value || ""
+)
+.replace(
+/\r?\n/g,
+" "
+)
+.trim() ||
+" "
+);
 }
 
 function sourceFile(
-  scene
+scene
 ) {
-  if (
-    !scene.footage
-  ) {
-    return null;
-  }
+if (
+!scene.footage
+) {
+return null;
+}
 
-  const file =
-    path.join(
-      recordingDir,
-      scene.footage
-    );
+const file =
+path.join(
+recordingDir,
+scene.footage
+);
 
-  if (
-    !fs.existsSync(
-      file
-    )
-  ) {
-    return null;
-  }
+if (
+!fs.existsSync(
+file
+)
+) {
+return null;
+}
 
-  return file;
+return file;
 }
 
 function interactionFilters(
-  interaction,
-  size
+interaction,
+size
 ) {
-  if (
-    !interaction ||
-    !interaction.focus
-  ) {
-    return [];
-  }
+if (
+!interaction ||
+!interaction.focus
+) {
+return [];
+}
 
-  const x =
-    Math.round(
-      Number(
-        interaction
-          .focus
-          .x
-      ) *
-        size.width /
-        1280
-    );
+const x =
+Math.round(
+Number(
+interaction
+.focus
+.x
+) *
+size.width /
+1280
+);
 
-  const y =
-    Math.round(
-      Number(
-        interaction
-          .focus
-          .y
-      ) *
-        size.height /
-        720
-    );
+const y =
+Math.round(
+Number(
+interaction
+.focus
+.y
+) *
+size.height /
+720
+);
 
-  if (
-    !Number.isFinite(x) ||
-    !Number.isFinite(y)
-  ) {
-    return [];
-  }
+if (
+!Number.isFinite(x) ||
+!Number.isFinite(y)
+) {
+return [];
+}
 
-  const radius =
-    Math.max(
-      18,
-      Math.round(
-        Math.min(
-          size.width,
-          size.height
-        ) *
-          0.035
-      )
-    );
+const radius =
+Math.max(
+18,
+Math.round(
+Math.min(
+size.width,
+size.height
+) *
+0.035
+)
+);
 
-  const filters = [];
+const filters = [];
 
-  if (
-    (
-      interaction.effects ||
-      []
-    ).includes(
-      "focus-hold"
-    )
-  ) {
-    filters.push(
-      `drawbox=x=${Math.max(
+if (
+(
+interaction.effects ||
+[]
+).includes(
+"focus-hold"
+)
+) {
+filters.push(
+`drawbox=x=${Math.max(
         0,
         x - radius
       )}:y=${Math.max(
         0,
         y - radius
       )}:w=${radius * 2}:h=${radius * 2}:color=white@0.75:t=3`
-    );
-  }
+);
+}
 
-  if (
-    (
-      interaction.effects ||
-      []
-    ).includes(
-      "click-ring"
-    )
-  ) {
-    filters.push(
-      `drawbox=x=${x - radius}:y=${y - radius}:w=${radius * 2}:h=${radius * 2}:color=white@0.9:t=4:enable='between(t,0.15,0.85)'`
-    );
-  }
+if (
+(
+interaction.effects ||
+[]
+).includes(
+"click-ring"
+)
+) {
+filters.push(
+`drawbox=x=${x - radius}:y=${y - radius}:w=${radius * 2}:h=${radius * 2}:color=white@0.9:t=4:enable='between(t,0.15,0.85)'`
+);
+}
 
-  return filters;
+return filters;
 }
 
 function buildScene(
-  scene,
-  index,
-  formatKey,
-  size
+scene,
+index,
+formatKey,
+size
 ) {
-  const input =
-    sourceFile(
-      scene
-    );
+const input =
+sourceFile(
+scene
+);
 
-  if (!input) {
-    throw new Error(
-      `Missing footage for scene ${scene.id || index}`
-    );
-  }
+if (!input) {
+throw new Error(
+`Missing footage for scene ${scene.id || index}`
+);
+}
 
-  const duration =
-    Number(
-      scene.duration
-    ) || 5;
+const duration =
+Number(
+scene.duration
+) || 5;
 
-  const captionFile =
-    path.join(
-      workDir,
-      `${formatKey}-${index}-caption.txt`
-    );
+const captionFile =
+path.join(
+workDir,
+`${formatKey}-${index}-caption.txt`
+);
 
-  const labelFile =
-    path.join(
-      workDir,
-      `${formatKey}-${index}-label.txt`
-    );
+const labelFile =
+path.join(
+workDir,
+`${formatKey}-${index}-label.txt`
+);
 
-  writeText(
-    captionFile,
-    scene.narration
-  );
+writeText(
+captionFile,
+scene.narration
+);
 
-  writeText(
-    labelFile,
-    scene.id
-      ? scene.id
-          .replace(
-            /[-_]+/g,
-            " "
-          )
-          .toUpperCase()
-      : "BRAG"
-  );
+writeText(
+labelFile,
+scene.id
+? scene.id
+.replace(
+/[-_]+/g,
+" "
+)
+.toUpperCase()
+: "BRAG"
+);
 
-  const isVideo =
-    /\.(webm|mp4|mov|mkv)$/i.test(
-      input
-    );
+const isVideo =
+/.(webm|mp4|mov|mkv)$/i.test(
+input
+);
 
-  const common = [
-    `drawtext=font='DejaVu Sans':textfile='${esc(
+const common = [
+`drawtext=font='DejaVu Sans':textfile='${esc(
       labelFile
     )}':x=48:y=42:fontsize=26:fontcolor=white@0.94:box=1:boxcolor=black@0.42:boxborderw=12`,
 
-    `drawtext=font='DejaVu Sans':textfile='${esc(
-      captionFile
-    )}':x=48:y=h-120:fontsize=28:fontcolor=white:box=1:boxcolor=black@0.58:boxborderw=18:line_spacing=8`,
+```
+`drawtext=font='DejaVu Sans':textfile='${esc(
+  captionFile
+)}':x=48:y=h-120:fontsize=28:fontcolor=white:box=1:boxcolor=black@0.58:boxborderw=18:line_spacing=8`,
 
-    ...interactionFilters(
-      scene.interaction,
-      size
-    )
-  ];
+...interactionFilters(
+  scene.interaction,
+  size
+)
+```
 
-  let filters;
+];
 
-  if (isVideo) {
-    /*
-     * REAL BROWSER RECORDING.
-     *
-     * The critical difference from the
-     * old implementation:
-     *
-     * We never treat this as a still image.
-     *
-     * We also select a real time window
-     * from the browser recording.
-     */
-    const start =
-      Math.max(
-        0,
-        Number(
-          scene.videoStart
-        ) || 0
-      );
+let filters;
 
-    const end =
-      Number(
-        scene.videoEnd
-      );
+if (isVideo) {
+/*
+* REAL BROWSER RECORDING.
+*
+* The recording itself contains the
+* actual browser interaction.
+*
+* Do not convert it into a still image.
+*/
+const start =
+Math.max(
+0,
+Number(
+scene.videoStart
+) || 0
+);
 
-    const clipDuration =
-      Number.isFinite(
-        end
-      ) &&
-      end > start
-        ? Math.max(
-            0.8,
-            end - start
-          )
-        : duration;
-
-    filters = [
-      `trim=start=${start.toFixed(
-        3
-      )}:duration=${clipDuration.toFixed(
-        3
-      )}`,
-
-      "setpts=PTS-STARTPTS",
-
-      `scale=${size.width}:${size.height}:force_original_aspect_ratio=increase`,
-
-      `crop=${size.width}:${size.height}`,
-
-      ...common
-    ];
-  } else {
-    /*
-     * Screenshots are supported only as
-     * fallback/reference media.
-     */
-    filters = [
-      `scale=${size.width}:${size.height}:force_original_aspect_ratio=increase`,
-
-      `crop=${size.width}:${size.height}`,
-
-      ...common
-    ];
-  }
-
-  const output =
-    path.join(
-      workDir,
-      `${formatKey}-${index}.mp4`
-    );
-
-  const args = [];
-
-  args.push(
-    "-y"
+```
+const end =
+  Number(
+    scene.videoEnd
   );
 
-  if (isVideo) {
-    args.push(
-      "-stream_loop",
-      "-1"
-    );
-  } else {
-    args.push(
-      "-loop",
-      "1"
-    );
-  }
+const clipDuration =
+  Number.isFinite(
+    end
+  ) &&
+  end > start
+    ? Math.max(
+        0.8,
+        end - start
+      )
+    : duration;
 
-  args.push(
-    "-i",
-    input,
+filters = [
+  `trim=start=${start.toFixed(
+    3
+  )}:duration=${clipDuration.toFixed(
+    3
+  )}`,
 
-    "-t",
-    String(duration),
+  "setpts=PTS-STARTPTS",
 
-    "-vf",
-    filters.join(","),
+  `scale=${size.width}:${size.height}:force_original_aspect_ratio=increase`,
 
-    "-an",
+  `crop=${size.width}:${size.height}`,
 
-    "-r",
-    String(FPS),
+  ...common
+];
+```
 
-    ...ENCODE_ARGS,
+} else {
+/*
+* Screenshot/reference fallback.
+*/
+filters = [
+`scale=${size.width}:${size.height}:force_original_aspect_ratio=increase`,
 
-    "-pix_fmt",
-    "yuv420p",
+```
+  `crop=${size.width}:${size.height}`,
 
-    output
-  );
+  ...common
+];
+```
 
-  console.log(
-    `\nRendering scene ${scene.id || index}`
-  );
-
-  console.log(
-    "Source:",
-    input
-  );
-
-  console.log(
-    "Source type:",
-    isVideo
-      ? "REAL BROWSER VIDEO"
-      : "REFERENCE IMAGE"
-  );
-
-  console.log(
-    "Video window:",
-    isVideo
-      ? `${scene.videoStart || 0}s → ${scene.videoEnd || "end"}`
-      : "N/A"
-  );
-
-  execFileSync(
-    "ffmpeg",
-    args,
-    {
-      stdio:
-        "inherit"
-    }
-  );
-
-  return {
-    output,
-    duration
-  };
 }
 
-function buildNarrationAudio() {
-  if (
-    !audioManifest ||
-    !Array.isArray(
-      audioManifest.scenes
-    )
-  ) {
-    return null;
+const output =
+path.join(
+workDir,
+`${formatKey}-${index}.mp4`
+);
+
+const args = [];
+
+args.push(
+"-y"
+);
+
+/*
+
+* IMPORTANT:
+*
+* Real footage should normally be
+* longer than the requested scene.
+*
+* We keep stream looping as a safety
+* fallback only. With the new runner,
+* the actual recording is now much
+* longer and contains multiple states.
+  */
+  if (isVideo) {
+  args.push(
+  "-stream_loop",
+  "-1"
+  );
+  } else {
+  args.push(
+  "-loop",
+  "1"
+  );
   }
 
-  const audioFiles =
-    audioManifest.scenes
-      .map(
-        (scene) => {
-          if (
-            !scene.audio
-          ) {
-            return null;
-          }
+args.push(
+"-i",
+input,
 
-          const file =
-            path.join(
-              audioDir,
-              scene.audio
-            );
+```
+"-t",
+String(duration),
 
-          if (
-            !fs.existsSync(
-              file
-            )
-          ) {
-            return null;
-          }
+"-vf",
+filters.join(","),
 
-          return {
-            file,
+"-an",
 
-            duration:
-              Number(
-                scene.targetDuration
-              ) || 5
-          };
-        }
-      )
-      .filter(Boolean);
+"-r",
+String(FPS),
 
+...ENCODE_ARGS,
+
+"-pix_fmt",
+"yuv420p",
+
+output
+```
+
+);
+
+console.log(
+`\nRendering scene ${scene.id || index}`
+);
+
+console.log(
+"Source:",
+input
+);
+
+console.log(
+"Source type:",
+isVideo
+? "REAL BROWSER VIDEO"
+: "REFERENCE IMAGE"
+);
+
+console.log(
+"Video window:",
+isVideo
+? `${scene.videoStart || 0}s → ${scene.videoEnd || "end"}`
+: "N/A"
+);
+
+execFileSync(
+"ffmpeg",
+args,
+{
+stdio:
+"inherit"
+}
+);
+
+return {
+output,
+duration
+};
+}
+
+/*
+
+* Build narration as a SINGLE sequential
+* audio stream.
+*
+* Previous implementation used acrossfade
+* between every narration clip. That made
+* spoken words overlap and produced the
+* distorted/smeared voice effect.
+*
+* New approach:
+*
+* scene 1 → scene 2 → scene 3 → scene 4
+*
+* No overlapping speech.
+  */
+  function buildNarrationAudio() {
   if (
-    !audioFiles.length
+  !audioManifest ||
+  !Array.isArray(
+  audioManifest.scenes
+  )
   ) {
-    return null;
+  return null;
   }
 
-  const inputs = [];
+const audioFiles =
+audioManifest.scenes
+.map(
+(scene) => {
+if (
+!scene.audio
+) {
+return null;
+}
 
-  const filters = [];
+```
+      const file =
+        path.join(
+          audioDir,
+          scene.audio
+        );
 
-  audioFiles.forEach(
-    (item, index) => {
-      inputs.push(
-        "-i",
-        item.file
-      );
+      if (
+        !fs.existsSync(
+          file
+        )
+      ) {
+        return null;
+      }
 
-      filters.push(
-        `[${index}:a]apad,atrim=duration=${item.duration.toFixed(
-          3
-        )},asetpts=N/SR/TB[a${index}]`
-      );
+      return {
+        file,
+
+        duration:
+          Number(
+            scene.targetDuration
+          ) || 5
+      };
     }
+  )
+  .filter(Boolean);
+```
+
+if (
+!audioFiles.length
+) {
+return null;
+}
+
+const inputs = [];
+const filters = [];
+
+audioFiles.forEach(
+(item, index) => {
+inputs.push(
+"-i",
+item.file
+);
+
+```
+  /*
+   * Normalize each narration segment
+   * gently before concatenation.
+   *
+   * Volume below unity prevents
+   * clipping, while alimiter catches
+   * peaks from the synthesized voice.
+   */
+  filters.push(
+    `[${index}:a]apad,atrim=duration=${item.duration.toFixed(
+      3
+    )},asetpts=N/SR/TB,volume=0.82,alimiter=limit=0.95[a${index}]`
+  );
+}
+```
+
+);
+
+/*
+
+* Concatenate sequentially.
+*
+* This is intentionally NOT acrossfade.
+  */
+  const labels =
+  audioFiles.map(
+  (_, index) =>
+  `[a${index}]`
   );
 
-  let current =
-    "[a0]";
+const concatOutput =
+"[narration]";
 
-  for (
-    let i = 1;
-    i < audioFiles.length;
-    i++
-  ) {
-    const output =
-      `[af${i}]`;
+filters.push(
+`${labels.join(
+      ""
+    )}concat=n=${audioFiles.length}:v=0:a=1${concatOutput}`
+);
 
-    filters.push(
-      `${current}[a${i}]acrossfade=d=${TRANSITION}:c1=tri:c2=tri${output}`
-    );
+const output =
+path.join(
+workDir,
+"narration.wav"
+);
 
-    current =
-      output;
-  }
+execFileSync(
+"ffmpeg",
+[
+"-y",
 
-  const output =
-    path.join(
-      workDir,
-      "narration.wav"
-    );
+```
+  ...inputs,
 
-  execFileSync(
-    "ffmpeg",
-    [
-      "-y",
+  "-filter_complex",
+  filters.join(";"),
 
-      ...inputs,
+  "-map",
+  concatOutput,
 
-      "-filter_complex",
-      filters.join(";"),
+  "-c:a",
+  "pcm_s16le",
 
-      "-map",
-      current,
+  "-ar",
+  "48000",
 
-      "-c:a",
-      "pcm_s16le",
+  "-ac",
+  "2",
 
-      output
-    ],
-    {
-      stdio:
-        "inherit"
-    }
-  );
+  output
+],
+{
+  stdio:
+    "inherit"
+}
+```
 
-  return output;
+);
+
+return output;
 }
 
 function compose(
-  clips,
-  formatKey,
-  size,
-  narration
+clips,
+formatKey,
+size,
+narration
 ) {
-  if (
-    !clips.length
-  ) {
-    throw new Error(
-      "No scenes to render."
-    );
-  }
+if (
+!clips.length
+) {
+throw new Error(
+"No scenes to render."
+);
+}
 
-  const inputs = [];
+const inputs = [];
 
-  clips.forEach(
-    (clip) => {
-      inputs.push(
-        "-i",
-        clip.output
-      );
-    }
+clips.forEach(
+(clip) => {
+inputs.push(
+"-i",
+clip.output
+);
+}
+);
+
+const filters = [];
+
+let current =
+"[0:v]";
+
+let elapsed =
+clips[0].duration;
+
+for (
+let i = 1;
+i < clips.length;
+i++
+) {
+const next =
+`[${i}:v]`;
+
+```
+const output =
+  `[v${i}]`;
+
+const offset =
+  Math.max(
+    0,
+    elapsed -
+      TRANSITION
   );
 
-  const filters = [];
+filters.push(
+  `${current}${next}xfade=transition=fade:duration=${TRANSITION}:offset=${offset.toFixed(
+    3
+  )}${output}`
+);
 
-  let current =
-    "[0:v]";
+current =
+  output;
 
-  let elapsed =
-    clips[0].duration;
+elapsed +=
+  clips[i].duration -
+  TRANSITION;
+```
 
-  for (
-    let i = 1;
-    i < clips.length;
-    i++
-  ) {
-    const next =
-      `[${i}:v]`;
+}
 
-    const output =
-      `[v${i}]`;
+const finalPath =
+path.join(
+outDir,
+`brag-demo-${formatKey}.mp4`
+);
 
-    const offset =
-      Math.max(
-        0,
-        elapsed -
-          TRANSITION
-      );
+const args = [
+"-y",
 
-    filters.push(
-      `${current}${next}xfade=transition=fade:duration=${TRANSITION}:offset=${offset.toFixed(
-        3
-      )}${output}`
-    );
+```
+...inputs
+```
 
-    current =
-      output;
+];
 
-    elapsed +=
-      clips[i].duration -
-      TRANSITION;
-  }
+if (narration) {
+args.push(
+"-i",
+narration
+);
+}
 
-  const finalPath =
-    path.join(
-      outDir,
-      `brag-demo-${formatKey}.mp4`
-    );
+args.push(
+"-filter_complex",
+filters.join(";"),
 
-  const args = [
-    "-y",
+```
+"-map",
+current
+```
 
-    ...inputs
-  ];
+);
 
-  if (narration) {
-    args.push(
-      "-i",
-      narration
-    );
-  }
+if (narration) {
+args.push(
+"-map",
+`${clips.length}:a`
+);
+}
 
-  args.push(
-    "-filter_complex",
-    filters.join(";"),
+args.push(
+"-r",
+String(FPS),
 
-    "-map",
-    current
-  );
+```
+"-s",
+`${size.width}x${size.height}`,
 
-  if (narration) {
-    args.push(
-      "-map",
-      `${clips.length}:a`
-    );
-  }
+...ENCODE_ARGS
+```
 
-  args.push(
-    "-r",
-    String(FPS),
+);
 
-    "-s",
-    `${size.width}x${size.height}`,
+if (narration) {
+args.push(
+"-c:a",
+"aac",
 
-    ...ENCODE_ARGS
-  );
+```
+  "-b:a",
+  "160k",
 
-  if (narration) {
-    args.push(
-      "-c:a",
-      "aac",
+  /*
+   * Prevent audio from extending beyond
+   * the actual finished video.
+   */
+  "-shortest"
+);
+```
 
-      "-b:a",
-      "160k",
+} else {
+args.push(
+"-an"
+);
+}
 
-      "-shortest"
-    );
-  } else {
-    args.push(
-      "-an"
-    );
-  }
+args.push(
+"-pix_fmt",
+"yuv420p",
 
-  args.push(
-    "-pix_fmt",
-    "yuv420p",
+```
+"-movflags",
+"+faststart",
 
-    "-movflags",
-    "+faststart",
+finalPath
+```
 
-    finalPath
-  );
+);
 
-  console.log(
-    `\nComposing ${formatKey}...`
-  );
+console.log(
+`\nComposing ${formatKey}...`
+);
 
-  console.log(
-    "Narration:",
-    narration
-      ? "YES"
-      : "NO"
-  );
+console.log(
+"Narration:",
+narration
+? "YES"
+: "NO"
+);
 
-  execFileSync(
-    "ffmpeg",
-    args,
-    {
-      stdio:
-        "inherit"
-    }
-  );
+execFileSync(
+"ffmpeg",
+args,
+{
+stdio:
+"inherit"
+}
+);
 
-  return finalPath;
+return finalPath;
 }
 
 const planPath =
-  path.join(
-    path.dirname(
-      packagePath
-    ),
-    "edit-plan.json"
-  );
+path.join(
+path.dirname(
+packagePath
+),
+"edit-plan.json"
+);
 
 if (
-  !fs.existsSync(
-    planPath
-  )
+!fs.existsSync(
+planPath
+)
 ) {
-  execFileSync(
-    process.execPath,
-    [
-      "edit-plan.js",
-      packagePath
-    ],
-    {
-      stdio:
-        "inherit"
-    }
-  );
+execFileSync(
+process.execPath,
+[
+"edit-plan.js",
+packagePath
+],
+{
+stdio:
+"inherit"
+}
+);
 }
 
 const plan =
-  JSON.parse(
-    fs.readFileSync(
-      planPath,
-      "utf8"
-    )
-  );
+JSON.parse(
+fs.readFileSync(
+planPath,
+"utf8"
+)
+);
 
 const scenes =
-  plan.scenes ||
-  pkg.scenes ||
-  [];
+plan.scenes ||
+pkg.scenes ||
+[];
 
 if (
-  !scenes.length
+!scenes.length
 ) {
-  throw new Error(
-    "No scenes found."
-  );
+throw new Error(
+"No scenes found."
+);
 }
 
 const narration =
-  buildNarrationAudio();
+buildNarrationAudio();
 
 for (
-  const [
-    formatKey,
-    size
-  ] of Object.entries(
-    formats
-  )
+const [
+formatKey,
+size
+] of Object.entries(
+formats
+)
 ) {
-  const clips =
-    scenes.map(
-      (scene, index) =>
-        buildScene(
-          scene,
-          index + 1,
-          formatKey,
-          size
-        )
-    );
+const clips =
+scenes.map(
+(scene, index) =>
+buildScene(
+scene,
+index + 1,
+formatKey,
+size
+)
+);
 
-  const finalPath =
-    compose(
-      clips,
-      formatKey,
-      size,
-      narration
-    );
+const finalPath =
+compose(
+clips,
+formatKey,
+size,
+narration
+);
 
-  console.log(
-    "Rendered:",
-    finalPath
-  );
+console.log(
+"Rendered:",
+finalPath
+);
 }
 
 console.log(
-  "\nBRAG render complete."
+"\nBRAG render complete."
 );
