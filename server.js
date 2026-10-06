@@ -9,8 +9,7 @@ const { runWorkflow } = require("./runner");
 
 const PORT = Number(process.env.PORT || 4173);
 const ENGINE_TOKEN = process.env.BRAG_ENGINE_TOKEN || "";
-const ALLOWED_ORIGIN =
-  process.env.BRAG_ALLOWED_ORIGIN || "*";
+const ALLOWED_ORIGIN = process.env.BRAG_ALLOWED_ORIGIN || "*";
 
 const ROOT = __dirname;
 
@@ -21,8 +20,7 @@ const ROOT = __dirname;
 function corsHeaders() {
   return {
     "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
-    "Access-Control-Allow-Methods":
-      "GET, POST, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, HEAD, POST, OPTIONS",
     "Access-Control-Allow-Headers":
       "Content-Type, Authorization",
     "Access-Control-Max-Age": "86400"
@@ -657,6 +655,274 @@ async function handleProduce(
 }
 
 /* =========================================================
+   MEDIA DELIVERY
+========================================================= */
+
+const MEDIA_TYPES = {
+  ".mp4": "video/mp4",
+  ".webm": "video/webm",
+  ".mov": "video/quicktime",
+  ".mkv": "video/x-matroska"
+};
+
+function resolveMediaFile(
+  requestedFile
+) {
+  if (
+    typeof requestedFile !== "string" ||
+    !requestedFile
+  ) {
+    return null;
+  }
+
+  const normalized =
+    requestedFile
+      .replace(/\\/g, "/")
+      .replace(/^\/+/, "");
+
+  /*
+   * Only files inside /output are allowed.
+   */
+  if (
+    !normalized.startsWith(
+      "output/"
+    )
+  ) {
+    return null;
+  }
+
+  /*
+   * Only video formats are allowed.
+   */
+  const extension =
+    path.extname(
+      normalized
+    ).toLowerCase();
+
+  if (
+    !MEDIA_TYPES[extension]
+  ) {
+    return null;
+  }
+
+  const outputRoot =
+    path.resolve(
+      ROOT,
+      "output"
+    );
+
+  const absolute =
+    path.resolve(
+      ROOT,
+      normalized
+    );
+
+  /*
+   * Prevent directory traversal.
+   */
+  if (
+    absolute !== outputRoot &&
+    !absolute.startsWith(
+      outputRoot + path.sep
+    )
+  ) {
+    return null;
+  }
+
+  return {
+    absolute,
+    type:
+      MEDIA_TYPES[extension]
+  };
+}
+
+function handleMedia(
+  req,
+  res
+) {
+  if (!requireAuth(req, res)) {
+    return;
+  }
+
+  const parsed =
+    new URL(
+      req.url,
+      `http://localhost:${PORT}`
+    );
+
+  const media =
+    resolveMediaFile(
+      parsed.searchParams.get(
+        "file"
+      )
+    );
+
+  if (!media) {
+    return sendJson(
+      res,
+      400,
+      {
+        ok: false,
+        error:
+          "Invalid media file."
+      }
+    );
+  }
+
+  if (
+    !fs.existsSync(
+      media.absolute
+    )
+  ) {
+    return sendJson(
+      res,
+      404,
+      {
+        ok: false,
+        error:
+          "Media file not found."
+      }
+    );
+  }
+
+  const stat =
+    fs.statSync(
+      media.absolute
+    );
+
+  const range =
+    req.headers.range;
+
+  const headers = {
+    ...corsHeaders(),
+    "Content-Type":
+      media.type,
+    "Accept-Ranges":
+      "bytes",
+    "Cache-Control":
+      "no-store",
+    "Content-Length":
+      stat.size
+  };
+
+  /*
+   * Browser video players use
+   * HTTP range requests for seeking.
+   */
+  if (range) {
+    const match =
+      /^bytes=(\d*)-(\d*)$/.exec(
+        range
+      );
+
+    if (!match) {
+      res.writeHead(
+        416,
+        {
+          ...headers,
+          "Content-Range":
+            `bytes */${stat.size}`
+        }
+      );
+
+      return res.end();
+    }
+
+    let start = match[1]
+      ? Number(match[1])
+      : Math.max(
+          0,
+          stat.size -
+            Number(
+              match[2] || 0
+            )
+        );
+
+    let end = match[2]
+      ? Number(match[2])
+      : stat.size - 1;
+
+    if (
+      !Number.isInteger(start) ||
+      !Number.isInteger(end) ||
+      start < 0 ||
+      end < start ||
+      start >= stat.size
+    ) {
+      res.writeHead(
+        416,
+        {
+          ...headers,
+          "Content-Range":
+            `bytes */${stat.size}`
+        }
+      );
+
+      return res.end();
+    }
+
+    end =
+      Math.min(
+        end,
+        stat.size - 1
+      );
+
+    headers[
+      "Content-Range"
+    ] =
+      `bytes ${start}-${end}/${stat.size}`;
+
+    headers[
+      "Content-Length"
+    ] =
+      end - start + 1;
+
+    res.writeHead(
+      206,
+      headers
+    );
+
+    if (
+      req.method ===
+      "HEAD"
+    ) {
+      return res.end();
+    }
+
+    return fs
+      .createReadStream(
+        media.absolute,
+        {
+          start,
+          end
+        }
+      )
+      .pipe(res);
+  }
+
+  /*
+   * Full-file response.
+   */
+  res.writeHead(
+    200,
+    headers
+  );
+
+  if (
+    req.method ===
+    "HEAD"
+  ) {
+    return res.end();
+  }
+
+  return fs
+    .createReadStream(
+      media.absolute
+    )
+    .pipe(res);
+}
+
+/* =========================================================
    SERVER
 ========================================================= */
 
@@ -690,7 +956,12 @@ const server =
        */
 
       if (
-        req.method === "GET" &&
+        (
+          req.method ===
+            "GET" ||
+          req.method ===
+            "HEAD"
+        ) &&
         req.url ===
           "/api/health"
       ) {
@@ -701,11 +972,12 @@ const server =
             ok: true,
             service:
               "brag-engine",
-            version: "3.0",
+            version: "3.1",
             capabilities: [
               "inspect",
               "record",
-              "produce"
+              "produce",
+              "media"
             ],
             timestamp:
               new Date().toISOString()
@@ -714,11 +986,33 @@ const server =
       }
 
       /*
+       * MEDIA
+       */
+
+      if (
+        (
+          req.method ===
+            "GET" ||
+          req.method ===
+            "HEAD"
+        ) &&
+        req.url.startsWith(
+          "/api/media?"
+        )
+      ) {
+        return handleMedia(
+          req,
+          res
+        );
+      }
+
+      /*
        * INSPECT
        */
 
       if (
-        req.method === "POST" &&
+        req.method ===
+          "POST" &&
         req.url ===
           "/api/inspect"
       ) {
@@ -733,7 +1027,8 @@ const server =
        */
 
       if (
-        req.method === "POST" &&
+        req.method ===
+          "POST" &&
         req.url ===
           "/api/record"
       ) {
@@ -748,7 +1043,8 @@ const server =
        */
 
       if (
-        req.method === "POST" &&
+        req.method ===
+          "POST" &&
         req.url ===
           "/api/produce"
       ) {
