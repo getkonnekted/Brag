@@ -1,6 +1,6 @@
 {
   "name": "brag",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "private": true,
   "description": "BRAG product-to-video demo engine",
   "scripts": {
@@ -21,7 +21,7 @@
     "engine": "node server.js",
     "personal": "node personal.js",
     "personal:remote": "node remote.js",
-    "postinstall": "npx playwright install --with-deps chromium",
+    "postinstall": "if [ \"$VERCEL\" = \"1\" ]; then echo 'Skipping Playwright browser install on Vercel'; else npx playwright install chromium; fi",
     "project-inspect": "node project-inspector.js",
     "director-manifest": "node director.js output/project.json"
   },
