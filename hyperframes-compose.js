@@ -52,6 +52,11 @@ const assetsDir = path.join(compositionDir, "assets");
 fs.rmSync(compositionRoot, { recursive: true, force: true });
 fs.mkdirSync(assetsDir, { recursive: true });
 
+const gsapSource = path.join(process.cwd(), "node_modules", "gsap", "dist", "gsap.min.js");
+const gsapTarget = path.join(assetsDir, "gsap.min.js");
+if (!fs.existsSync(gsapSource)) throw new Error("GSAP runtime not installed. Run npm install before composing.");
+fs.copyFileSync(gsapSource, gsapTarget);
+
 const assetName = "real-product-footage.webm";
 fs.copyFileSync(footagePath, path.join(assetsDir, assetName));
 
@@ -64,6 +69,7 @@ const html = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=1920,height=1080">
+<script src="assets/gsap.min.js"></script>
 <style>
 *{box-sizing:border-box}
 html,body{margin:0;width:1920px;height:1080px;overflow:hidden;background:#080808;color:#fff;font-family:Inter,system-ui,sans-serif}
