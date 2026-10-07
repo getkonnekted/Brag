@@ -5,7 +5,7 @@ const { execFileSync, spawnSync } = require("child_process");
 const url = process.argv.find(arg => /^https?:\/\//i.test(arg)) || null;
 const checkOnly = process.argv.includes("--check");
 
-function run(label, script, args = []) {
+function progress(stage, percent, message) { console.log(`DEMO_PROGRESS ${JSON.stringify({ stage, percent, message, at:new Date().toISOString() })}`); }\n\nfunction run(label, script, args = [], stage = "running", percent = 0, message = label) {\n  progress(stage, percent, message);
   console.log("\n=== " + label + " ===");
   const result = spawnSync(process.execPath, [script, ...args], {
     stdio: ["inherit", "pipe", "pipe"],
@@ -72,10 +72,10 @@ function main() {
 
   fs.mkdirSync("output", { recursive: true });
 
-  run("REAL PRODUCT INSPECTION", "capture.js", [url]);
-  run("BRAG DIRECTOR EVIDENCE", "director.js");
-  run("REAL PRODUCT WORKFLOW", "runner.js", [url, maxSteps]);
-  run("BRAG HYPERFRAMES COMPOSITION", "hyperframes-compose.js");
+  run("REAL PRODUCT INSPECTION", "capture.js", [url], "inspect", 12, "Understanding the real product…");
+  run("BRAG DIRECTOR EVIDENCE", "director.js", [], "direct", 28, "Choosing the strongest workflow…");
+  run("REAL PRODUCT WORKFLOW", "runner.js", [url, maxSteps], "capture", 42, "Capturing real product interaction…");
+  run("BRAG HYPERFRAMES COMPOSITION", "hyperframes-compose.js", [], "compose", 68, "Building the demo composition…");
 
   run("HYPERFRAMES CHECK + RENDER", "hyperframes-render.js", [
     "output/hyperframes-composition",
@@ -101,7 +101,7 @@ function main() {
     }, null, 2)
   );
 
-  console.log("\nBRAG production complete: " + output);
+  progress("complete",100,"Demo ready.");\n  console.log("\nBRAG production complete: " + output);
 }
 
 main();
