@@ -437,8 +437,8 @@ async function handleRecord(
       await runWorkflow(
         data.url,
         {
-          maxSteps:
-            data.maxSteps
+          maxSteps: data.maxSteps,
+          userIntent: data.description || ""
         }
       );
 
@@ -490,7 +490,7 @@ async function handleProduce(req,res){
     const args=["brag.js",data.url,String(data.maxSteps||4)];if(data.description)args.push(String(data.description));
     const job=createProductionJob();job.formats=formats;console.log("[BRAG] PRODUCE START:",data.url,job.id,formats);
     for(const target of ["brag.js","capture.js","director.js","runner.js","hyperframes-compose.js","hyperframes-render.js"]){const check=spawnSync(process.execPath,["--check",target],{cwd:ROOT,env:process.env,encoding:"utf8"});if(check.status!==0){const log=(check.stderr||check.stdout||`Node syntax check failed for ${target}.`).trim();updateProductionJob(job,{status:"error",stage:"preflight",progress:0,message:"Engine code check failed.",error:`Engine code check failed in ${target}.`,log});return sendJson(res,500,{ok:false,jobId:job.id,status:job.status,stage:job.stage,progress:job.progress,message:job.message,error:job.error});}}
-    const child=spawn(process.execPath,args,{cwd:ROOT,env:{...process.env,DEMO_PRODUCTION_JOB_ID:job.id,DEMO_OUTPUT_FORMATS:formats.join(",")}});
+    const child=spawn(process.execPath,args,{cwd:ROOT,env:{...process.env,DEMO_PRODUCTION_JOB_ID:job.id,DEMO_OUTPUT_FORMATS:formats.join(","),DEMO_USER_INTENT:String(data.description||"")}});
     const productionTimeout=setTimeout(()=>{if(child.exitCode===null){console.error("[BRAG] PRODUCTION TIMEOUT:",job.id);updateProductionJob(job,{status:"error",stage:job.stage||"production",progress:job.progress,message:"Production timed out.",error:"Production exceeded the 10-minute safety limit. The render worker was stopped."});child.kill("SIGTERM");setTimeout(()=>{if(child.exitCode===null)child.kill("SIGKILL");},10000);}},PRODUCTION_TIMEOUT_MS);
     child.stdout.on("data",chunk=>{const t=chunk.toString();console.log("[BRAG]",t.trim());inferProductionProgress(job,t);});
     child.stderr.on("data",chunk=>{const t=chunk.toString();console.error("[BRAG STDERR]",t.trim());inferProductionProgress(job,t);});
