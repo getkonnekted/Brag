@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-type Stage = "idle" | "inspecting" | "producing" | "ready" | "error";
+type Stage = "idle" | "inspecting" | "producing" | "ready" | "error";\ntype ProductionStatus = { status:string; stage:string; progress:number; message:string; elapsedMs?:number; error?:string|null; result?:any };
 
 const DEFAULT_ENGINE = (process.env.NEXT_PUBLIC_DEMO_ENGINE_URL || "http://localhost:4173").replace(/\/$/, "");
 
@@ -14,7 +14,7 @@ export default function Home() {
   const [engineUrl, setEngineUrl] = useState(DEFAULT_ENGINE);
   const [engineToken, setEngineToken] = useState("");
   const [product, setProduct] = useState("your product");
-  const [videoUrls, setVideoUrls] = useState<Record<"16x9" | "9x16", string>>({ "16x9": "", "9x16": "" });
+  const [videoUrls, setVideoUrls] = useState<Record<"16x9" | "9x16", string>>({ "16x9": "", "9x16": "" });\n  const [production, setProduction] = useState<ProductionStatus | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem("demo_engine_url") || "";
@@ -73,27 +73,32 @@ export default function Home() {
       setStage("producing");
 
       const produceResponse = await fetch(ENGINE + "/api/produce", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...(engineToken ? { Authorization: `Bearer ${engineToken}` } : {}) },
-        body: JSON.stringify({ url: normalizedUrl, maxSteps: 4, description })
+        method:"POST",
+        headers:{"Content-Type":"application/json",...(engineToken?{Authorization:`Bearer ${engineToken}`}:{})},
+        body:JSON.stringify({url:normalizedUrl,maxSteps:4,description})
       });
-      const produceData = await produceResponse.json().catch(() => ({}));
-
-      if (!produceResponse.ok || !produceData.ok) {
-        const log = typeof produceData.log === "string" ? produceData.log : "";
-        const detail = typeof produceData.error === "string" ? produceData.error : "";
-        throw new Error(detail || log.slice(-1500) || "Could not produce the demo.");
+      const produceData=await produceResponse.json().catch(()=>({}));
+      if(!produceResponse.ok||!produceData.jobId)throw new Error(produceData.error||"Could not start demo production.");
+      const jobId=produceData.jobId;
+      setProduction({status:"running",stage:produceData.stage||"preflight",progress:produceData.progress||2,message:produceData.message||"Starting production…"});
+      let finished:any=null;
+      for(;;){
+        await new Promise(resolve=>setTimeout(resolve,1000));
+        const sr=await fetch(`${ENGINE}/api/produce/status?jobId=${encodeURIComponent(jobId)}`,{cache:"no-store",headers:engineToken?{Authorization:`Bearer ${engineToken}`}:{}});
+        const sd=await sr.json().catch(()=>({}));
+        if(!sr.ok)throw new Error(sd.error||"Lost contact with the production engine.");
+        setProduction(sd);
+        if(sd.status==="complete"||sd.status==="error"){finished=sd;break;}
       }
-
-      const nextVideos: Record<"16x9" | "9x16", string> = { "16x9": "", "9x16": "" };
-      for (const file of produceData.final || []) {
-        if (file.includes("product-demo-16x9.mp4")) nextVideos["16x9"] = `${ENGINE}/api/media?file=${encodeURIComponent(file)}${engineToken ? `&token=${encodeURIComponent(engineToken)}` : ""}`;
-        if (file.includes("product-demo-9x16.mp4")) nextVideos["9x16"] = `${ENGINE}/api/media?file=${encodeURIComponent(file)}${engineToken ? `&token=${encodeURIComponent(engineToken)}` : ""}`;
+      const produceResult=finished?.result;
+      if(finished?.status!=="complete"||!produceResult?.ok)throw new Error(finished?.error||produceResult?.error||"Could not produce the demo.");
+      const nextVideos:Record<"16x9"|"9x16",string>={"16x9":"","9x16":""};
+      for(const file of produceResult.final||[]){
+        if(file.includes("product-demo-16x9.mp4"))nextVideos["16x9"]=`${ENGINE}/api/media?file=${encodeURIComponent(file)}${engineToken?`&token=${encodeURIComponent(engineToken)}`:""}`;
+        if(file.includes("product-demo-9x16.mp4"))nextVideos["9x16"]=`${ENGINE}/api/media?file=${encodeURIComponent(file)}${engineToken?`&token=${encodeURIComponent(engineToken)}`:""}`;
       }
       setVideoUrls(nextVideos);
-      if (!nextVideos["16x9"] && !nextVideos["9x16"]) {
-        throw new Error("The engine finished without returning the 16:9 or 9:16 video.");
-      }
+      if(!nextVideos["16x9"]&&!nextVideos["9x16"])throw new Error("The engine finished without returning the 16:9 or 9:16 video.");
 
       setStage("ready");
       setTimeout(() => document.getElementById("result")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
@@ -130,7 +135,14 @@ export default function Home() {
             </button>
           </div>
           <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional: tell the director what matters most…" rows={2} />
-          {error && <div className="error">{error}</div>}
+          {stage === "producing" && production && (
+            <div className="production-progress" aria-live="polite">
+              <div className="production-head"><div><strong>{production.message}</strong><span>{Math.round(production.progress)}%</span></div><div className="production-stage">{production.stage.toUpperCase()} · {Math.floor((production.elapsedMs || 0) / 1000)}s elapsed</div></div>
+              <div className="production-track"><div className="production-fill" style={{width:`${Math.max(2,Math.min(100,production.progress))}%`}} /></div>
+              <div className="production-steps"><span className={production.progress>=12?"done":""}>Understand</span><span className={production.progress>=28?"done":""}>Direct</span><span className={production.progress>=42?"done":""}>Capture</span><span className={production.progress>=68?"done":""}>Compose</span><span className={production.progress>=74?"active":""}>Render</span><span className={production.progress>=100?"done":""}>Deliver</span></div>
+            </div>
+          )}
+          {error && <div className="error">{error}</div>
           {stage === "ready" && <div className="success"><span>●</span> Demo ready — real product footage captured and rendered.</div>}
         </div>
         <div className="hero-note"><span>REAL PRODUCT</span><i>·</i><span>REAL INTERACTION</span><i>·</i><span>REAL PROOF</span></div>
