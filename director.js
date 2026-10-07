@@ -59,7 +59,59 @@ function buildDirectorManifest(inspection, options = {}) {
 }
 
 function buildStoryboard(inspection) { return buildDirectorManifest(inspection); }
-module.exports = { buildIntelligence, chooseAngle, buildDirectorManifest, buildStoryboard };
+
+function buildShotPlan(intelligence, options = {}) {
+  const workflow = Array.isArray(intelligence?.workflow)
+    ? intelligence.workflow
+    : ["Open the primary experience", "Show the core user action", "Reveal the useful outcome"];
+
+  const shots = [
+    {
+      id: "hook",
+      type: "hook",
+      goal: intelligence?.promise || "Show the product solving a real user problem.",
+      duration: 3
+    },
+    {
+      id: "orient",
+      type: "reveal",
+      goal: "Orient the viewer inside the real product.",
+      duration: 4
+    },
+    {
+      id: "workflow",
+      type: "workflow",
+      goal: workflow[0],
+      duration: 5
+    },
+    {
+      id: "proof",
+      type: "proof",
+      goal: workflow[1],
+      duration: 5
+    },
+    {
+      id: "outcome",
+      type: "outcome",
+      goal: workflow[2],
+      duration: 3
+    }
+  ];
+
+  return {
+    version: "2.1",
+    duration: Number(options.duration) || shots.reduce((sum, shot) => sum + shot.duration, 0),
+    shots
+  };
+}
+
+module.exports = {
+  buildIntelligence,
+  chooseAngle,
+  buildDirectorManifest,
+  buildStoryboard,
+  buildShotPlan
+};
 
 if (require.main === module) {
   const file = process.argv[2] || "output/inspection.json";
