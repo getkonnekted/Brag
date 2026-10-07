@@ -6,11 +6,11 @@ const root = path.resolve("output");
 const recording = path.join(root, "recording");
 const manifestPath = path.join(recording, "manifest.json");
 
-if (!fs.existsSync(manifestPath)) throw new Error("BRAG capture manifest not found.");
+if (!fs.existsSync(manifestPath)) throw new Error("DEMO. capture manifest not found.");
 
 const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
 const footage = manifest.realFootage && manifest.realFootage.file;
-if (!footage) throw new Error("BRAG did not produce real product footage.");
+if (!footage) throw new Error("DEMO. did not produce real product footage.");
 
 const footagePath = path.join(recording, footage);
 if (!fs.existsSync(footagePath) || fs.statSync(footagePath).size === 0) {
@@ -90,7 +90,7 @@ video{width:100%;height:100%;object-fit:cover}
       <video class="clip" src="assets/${assetName}" data-start="0" data-duration="${duration}" data-track-index="0" autoplay muted playsinline></video>
       <div class="scrim"></div>
     </div>
-    <div class="brand">BRAG / REAL PRODUCT</div>
+    <div class="brand">DEMO. / REAL PRODUCT</div>
     <div class="pill">${esc(director.archetype || "product workflow")}</div>
     <div class="kicker">${esc(label)}</div>
     <div class="title">${esc(name)}<br><span style="font-weight:400;opacity:.78">${esc(promise)}</span></div>
@@ -109,7 +109,7 @@ window.__timelines["main"] = tl;
 fs.writeFileSync(path.join(compositionDir, "index.html"), html, "utf8");
 
 fs.writeFileSync(path.join(compositionRoot, "brag-plan.md"),
-  "# BRAG Plan\n\nProduct: " + name +
+  "# DEMO. Plan\n\nProduct: " + name +
   "\nPromise: " + promise +
   "\nArchetype: " + (director.archetype || "product") +
   "\nDuration: " + duration.toFixed(2) + "s" +
