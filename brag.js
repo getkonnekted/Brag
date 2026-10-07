@@ -123,6 +123,10 @@ function main() {
   ], { stdio: "inherit" });
 
   const artifactInfo = [output, final16x9, final9x16].map(file => ({ file, exists: fs.existsSync(file), bytes: fs.existsSync(file) ? fs.statSync(file).size : 0 }));
+  const mediaInfo = artifactInfo.map(item => {
+    if (!item.exists || item.bytes === 0) throw new Error("Delivery artifact is missing or empty: " + item.file);
+    return item;
+  });
   console.log("\nDelivery artifacts:");
   console.log(JSON.stringify(artifactInfo, null, 2));
 
