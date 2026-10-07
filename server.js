@@ -1247,6 +1247,22 @@ const server =
       }
 
       /*
+       * HYPERFRAMES RENDER
+       */
+
+      if (
+        req.method ===
+          "POST" &&
+        req.url ===
+          "/api/hyperframes/render"
+      ) {
+        return handleHyperframesRender(
+          req,
+          res
+        );
+      }
+
+      /*
        * UNKNOWN ROUTE
        */
 
