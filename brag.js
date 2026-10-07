@@ -75,6 +75,8 @@ function main() {
     .filter(value => !value.startsWith("--"))
     .join(" ");
 
+  fs.rmSync("output/final", { recursive: true, force: true });
+  fs.mkdirSync("output/final", { recursive: true });
   fs.mkdirSync("output", { recursive: true });
 
   run("REAL PRODUCT INSPECTION", "capture.js", [url], "inspect", 12, "Understanding the real product…");
@@ -116,7 +118,7 @@ function main() {
   execFileSync("ffmpeg", [
     "-y",
     "-i", output,
-    "-vf", "crop=ih*9/16:ih,scale=1080:1920",
+    "-vf", "scale=-2:1920,crop=1080:1920",
     "-c:v", "libx264",
     "-preset", "veryfast",
     "-crf", "20",
@@ -124,6 +126,10 @@ function main() {
     "-movflags", "+faststart",
     final9x16
   ], { stdio: "inherit" });
+
+  const artifactInfo = [output, final16x9, final9x16].map(file => ({ file, exists: fs.existsSync(file), bytes: fs.existsSync(file) ? fs.statSync(file).size : 0 }));
+  console.log("\nDelivery artifacts:");
+  console.log(JSON.stringify(artifactInfo, null, 2));
 
   if (!fs.existsSync(final16x9) || fs.statSync(final16x9).size === 0) {
     throw new Error("BRAG did not produce the 16:9 delivery video.");
