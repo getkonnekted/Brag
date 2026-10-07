@@ -137,21 +137,10 @@ const TRANSITION =
 0.35;
 
 function esc(value) {
-return String(
-value || ""
-)
-.replace(
-/\/g,
-"\\"
-)
-.replace(
-/:/g,
-"\:"
-)
-.replace(
-/'/g,
-"\'"
-);
+  return String(value || "")
+    .replace(/\\/g, "\\\\")
+    .replace(/:/g, "\\:")
+    .replace(/\x27/g, "\\x27");
 }
 
 function writeText(
