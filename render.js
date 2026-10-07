@@ -4,7 +4,7 @@ const {
 execFileSync
 } = require("child_process");
 
-const RENDERER_VERSION = "3.2";
+const RENDERER_VERSION = "4.0";
 
 const packagePath =
 process.argv[2] ||
@@ -136,7 +136,7 @@ height: 1280
 const FPS = 30;
 
 const TRANSITION =
-0.35;
+0.18;
 
 function esc(value) {
   return String(value || "")
@@ -335,21 +335,7 @@ input
 );
 
 const common = [
-`drawtext=font='DejaVu Sans':textfile='${esc(
-      labelFile
-    )}':x=48:y=42:fontsize=26:fontcolor=white@0.94:box=1:boxcolor=black@0.42:boxborderw=12`,
-
-
-`drawtext=font='DejaVu Sans':textfile='${esc(
-  captionFile
-)}':x=48:y=h-120:fontsize=28:fontcolor=white:box=1:boxcolor=black@0.58:boxborderw=18:line_spacing=8`,
-
-...interactionFilters(
-  scene.interaction,
-  size
-)
-
-
+  ...interactionFilters(scene.interaction, size)
 ];
 
 let filters;
@@ -388,19 +374,22 @@ const clipDuration =
       )
     : duration;
 
+const focus = scene.interaction?.focus || null;
+const inputWidth = 1440;
+const inputHeight = 900;
+const focusX = focus && Number.isFinite(Number(focus.x)) ? Math.max(0, Math.min(inputWidth, Number(focus.x))) : inputWidth / 2;
+const scaleForHeight = size.height / inputHeight;
+const scaledWidth = inputWidth * scaleForHeight;
+const portraitX = Math.max(0, Math.min(scaledWidth - size.width, focusX * scaleForHeight - size.width / 2));
+const landscapeHeight = inputHeight * (size.width / inputWidth);
+const landscapeY = Math.max(0, (landscapeHeight - size.height) / 2);
+const framing = size.height > size.width
+  ? `scale=${scaledWidth.toFixed(2)}:${size.height.toFixed(2)},crop=${size.width}:${size.height}:${portraitX.toFixed(2)}:0`
+  : `scale=${size.width}:${landscapeHeight.toFixed(2)},crop=${size.width}:${size.height}:0:${landscapeY.toFixed(2)}`;
 filters = [
-  `trim=start=${start.toFixed(
-    3
-  )}:duration=${clipDuration.toFixed(
-    3
-  )}`,
-
+  `trim=start=${start.toFixed(3)}:duration=${clipDuration.toFixed(3)}`,
   "setpts=PTS-STARTPTS",
-
-  `scale=${size.width}:${size.height}:force_original_aspect_ratio=increase`,
-
-  `crop=${size.width}:${size.height}`,
-
+  framing,
   ...common
 ];
 
@@ -911,7 +900,7 @@ throw new Error(
 }
 
 const narration =
-buildNarrationAudio();
+  process.env.DEMO_ENABLE_NARRATION === "1" ? buildNarrationAudio() : null;
 
 for (
 const [
@@ -946,4 +935,4 @@ finalPath
 );
 }
 
-console.log(`\nBRAG render complete. Renderer ${RENDERER_VERSION}`);
+console.log(`\ndemo. render complete. Renderer ${RENDERER_VERSION}`);
