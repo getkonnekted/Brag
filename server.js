@@ -14,6 +14,12 @@ const ALLOWED_ORIGIN = process.env.BRAG_ALLOWED_ORIGIN || "*";
 const ROOT = __dirname;
 const ENGINE_VERSION = "3.3";
 
+const productionJobs = new Map();
+const PRODUCTION_JOB_TTL = 30 * 60 * 1000;
+function createProductionJob(){const id="job-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,7);const job={id,status:"starting",stage:"preflight",progress:2,message:"Starting production…",startedAt:new Date().toISOString(),updatedAt:new Date().toISOString(),elapsedMs:0,log:"",error:null,result:null};productionJobs.set(id,job);return job;}
+function updateProductionJob(job,patch){Object.assign(job,patch,{updatedAt:new Date().toISOString(),elapsedMs:Date.now()-Date.parse(job.startedAt)});}
+function inferProductionProgress(job,text){const clean=String(text||"").trim();if(!clean)return;job.log=(job.log+"\n"+clean).slice(-12000);if(/REAL PRODUCT INSPECTION/i.test(clean))updateProductionJob(job,{status:"running",stage:"inspect",progress:12,message:"Understanding the real product…"});else if(/BRAG DIRECTOR EVIDENCE/i.test(clean))updateProductionJob(job,{status:"running",stage:"direct",progress:28,message:"Choosing the strongest workflow…"});else if(/REAL PRODUCT WORKFLOW/i.test(clean))updateProductionJob(job,{status:"running",stage:"capture",progress:42,message:"Capturing real product interaction…"});else if(/BRAG HYPERFRAMES COMPOSITION/i.test(clean))updateProductionJob(job,{status:"running",stage:"compose",progress:68,message:"Building the demo composition…"});else if(/HYPERFRAMES CHECK \+ RENDER/i.test(clean))updateProductionJob(job,{status:"running",stage:"render",progress:74,message:"Rendering the final video…"});else if(/BRAG production complete/i.test(clean))updateProductionJob(job,{status:"running",stage:"verify",progress:98,message:"Verifying the finished demo…"});const m=clean.match(/(?:DEMO_PROGRESS[^0-9]*)?(\d{1,3})%/);const p=Number(m?.[1]);if(p>=1&&p<=99&&job.stage==="render")updateProductionJob(job,{progress:Math.max(74,Math.min(98,p)),message:`Rendering the final video… ${p}%`});}
+
 /* =========================================================
    RESPONSE HELPERS
 ========================================================= */
@@ -84,7 +90,7 @@ function readBody(req) {
     req.on("data", chunk => {
       body += chunk.toString();
 
-      if (body.length > 2 * 1024 * 1024) {
+      if (req.url && req.url.startsWith("/api/produce/status")) {\n        return handleProductionStatus(req, res);\n      }\n\n      if (body.length > 2 * 1024 * 1024) {
         reject(
           new Error(
             "Request body is too large."
@@ -474,279 +480,24 @@ async function handleRecord(
    PRODUCE ENDPOINT
 ========================================================= */
 
-async function handleProduce(
-  req,
-  res
-) {
-  if (!requireAuth(req, res)) {
-    return;
-  }
-
-  try {
-    const data =
-      await readBody(req);
-
-    if (!validUrl(data.url)) {
-      return sendJson(
-        res,
-        400,
-        {
-          ok: false,
-          error:
-            "A valid http(s) URL is required."
-        }
-      );
-    }
-
-    const maxSteps =
-      data.maxSteps || 4;
-
-    const args = [
-      "brag.js",
-      data.url,
-      String(maxSteps)
-    ];
-
-    if (data.description) {
-      args.push(
-        String(data.description)
-      );
-    }
-
-    console.log(
-      "[BRAG] PRODUCE START:",
-      data.url
-    );
-
-    /*
-     * Fail fast with a useful compiler error before starting production.
-     * This prevents the frontend from showing only the tail of a Node stack.
-     */
-    const syntaxTargets = [
-      "brag.js",
-      "capture.js",
-      "director.js",
-      "runner.js",
-      "demo.js",
-      "edit-plan.js",
-      "voice.js",
-      "render.js",
-      "qa.js"
-    ];
-
-    for (const target of syntaxTargets) {
-      const check = spawnSync(
-        process.execPath,
-        ["--check", target],
-        {
-          cwd: ROOT,
-          env: process.env,
-          encoding: "utf8"
-        }
-      );
-
-      if (check.status !== 0) {
-        const compilerLog = (
-          check.stderr ||
-          check.stdout ||
-          `Node syntax check failed for ${target}.`
-        ).trim();
-
-        console.error(
-          "[BRAG] SYNTAX ERROR:",
-          compilerLog
-        );
-
-        return sendJson(res, 500, {
-          ok: false,
-          error: `Engine code check failed in ${target}.`,
-          stage: "preflight",
-          log: compilerLog.slice(-12000)
-        });
-      }
-    }
-
-    const child = spawn(
-      process.execPath,
-      args,
-      {
-        cwd: ROOT,
-        env: process.env
-      }
-    );
-
-    let stdout = "";
-    let stderr = "";
-
-    child.stdout.on(
-      "data",
-      chunk => {
-        const text =
-          chunk.toString();
-
-        stdout += text;
-
-        console.log(
-          "[BRAG]",
-          text.trim()
-        );
-      }
-    );
-
-    child.stderr.on(
-      "data",
-      chunk => {
-        const text =
-          chunk.toString();
-
-        stderr += text;
-
-        console.error(
-          "[BRAG STDERR]",
-          text.trim()
-        );
-      }
-    );
-
-    child.on(
-      "error",
-      error => {
-        console.error(
-          "[BRAG] SPAWN ERROR:",
-          error
-        );
-      }
-    );
-
-    child.on(
-      "close",
-      code => {
-        let qa = null;
-
-        const qaPath =
-          path.join(
-            ROOT,
-            "output",
-            "qa",
-            "report.json"
-          );
-
-        if (
-          fs.existsSync(
-            qaPath
-          )
-        ) {
-          try {
-            qa =
-              JSON.parse(
-                fs.readFileSync(
-                  qaPath,
-                  "utf8"
-                )
-              );
-          } catch (error) {
-            console.error(
-              "[BRAG] QA READ ERROR:",
-              error
-            );
-          }
-        }
-
-        const files = [
-          "output/final/product-demo-16x9.mp4",
-          "output/final/product-demo-9x16.mp4"
-        ];
-
-        const finalFiles =
-          files.filter(file =>
-            fs.existsSync(
-              path.join(
-                ROOT,
-                file
-              )
-            )
-          );
-
-        const combinedLog = (
-          stdout +
-          "\n" +
-          stderr
-        ).trim();
-
-        const syntaxMatch =
-          combinedLog.match(
-            /(?:SyntaxError|Unexpected token|Invalid regular expression)[\\s\\S]{0,500}/i
-          );
-
-        const qaFailures = Array.isArray(qa?.checks)
-          ? qa.checks.filter(check => check.status === "fail")
-          : [];
-
-        const errorLines = stderr
-          .split("\n")
-          .map(line => line.trim())
-          .filter(Boolean)
-          .filter(line =>
-            /(?:Error:|TimeoutError|TargetClosedError|Navigation failed|page\\.|browser|chromium|playwright)/i.test(line)
-          );
-
-        const runtimeError =
-          syntaxMatch?.[0] ||
-          (qaFailures.length
-            ? qaFailures
-                .map(check => check.detail || check.message || check.name)
-                .filter(Boolean)
-                .join(" | ")
-            : null) ||
-          errorLines.slice(-6).join("\n") ||
-          stderr.trim().split("\n").filter(Boolean).slice(-12).join("\n") ||
-          stdout.trim().split("\n").filter(Boolean).slice(-12).join("\n") ||
-          "Demo production process exited with an error.";
-
-        const result = {
-          ok: code === 0,
-          exitCode: code,
-          stage: qaFailures.length ? "qa" : code === 0 ? "complete" : "production",
-          qa,
-          final: finalFiles,
-          error: code === 0 ? null : runtimeError,
-          log: combinedLog.slice(-12000)
-        };
-
-        console.log(
-          "[BRAG] PRODUCE COMPLETE:",
-          result.ok
-        );
-
-        sendJson(
-          res,
-          code === 0
-            ? 200
-            : 500,
-          result
-        );
-      }
-    );
-  } catch (error) {
-    console.error(
-      "[BRAG] PRODUCE ERROR:",
-      error
-    );
-
-    return sendJson(
-      res,
-      500,
-      {
-        ok: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : String(error),
-        stage: "produce"
-      }
-    );
-  }
+async function handleProduce(req,res){
+  if(!requireAuth(req,res))return;
+  try{
+    const data=await readBody(req);
+    if(!validUrl(data.url))return sendJson(res,400,{ok:false,error:"A valid http(s) URL is required."});
+    const args=["brag.js",data.url,String(data.maxSteps||4)];if(data.description)args.push(String(data.description));
+    const job=createProductionJob();console.log("[BRAG] PRODUCE START:",data.url,job.id);
+    for(const target of ["brag.js","capture.js","director.js","runner.js","demo.js","edit-plan.js","voice.js","render.js","qa.js"]){const check=spawnSync(process.execPath,["--check",target],{cwd:ROOT,env:process.env,encoding:"utf8"});if(check.status!==0){const log=(check.stderr||check.stdout||`Node syntax check failed for ${target}.`).trim();updateProductionJob(job,{status:"error",stage:"preflight",progress:0,message:"Engine code check failed.",error:`Engine code check failed in ${target}.`,log});return sendJson(res,500,{ok:false,jobId:job.id,status:job.status,stage:job.stage,progress:job.progress,message:job.message,error:job.error});}}
+    const child=spawn(process.execPath,args,{cwd:ROOT,env:{...process.env,DEMO_PRODUCTION_JOB_ID:job.id}});
+    child.stdout.on("data",chunk=>{const t=chunk.toString();console.log("[BRAG]",t.trim());inferProductionProgress(job,t);});
+    child.stderr.on("data",chunk=>{const t=chunk.toString();console.error("[BRAG STDERR]",t.trim());inferProductionProgress(job,t);});
+    child.on("error",error=>updateProductionJob(job,{status:"error",stage:"production",message:"Production process failed to start.",error:error.message}));
+    child.on("close",code=>{let qa=null;const qaPath=path.join(ROOT,"output","qa","report.json");if(fs.existsSync(qaPath)){try{qa=JSON.parse(fs.readFileSync(qaPath,"utf8"));}catch{}}const finalFiles=["output/final/product-demo-16x9.mp4","output/final/product-demo-9x16.mp4"].filter(f=>fs.existsSync(path.join(ROOT,f)));const qaFailures=Array.isArray(qa?.checks)?qa.checks.filter(c=>c.status==="fail"):[];const log=job.log.trim();const errorLines=log.split("\n").filter(Boolean).filter(line=>/(?:Error:|TimeoutError|TargetClosedError|Navigation failed|page\.|browser|chromium|playwright)/i.test(line));const runtimeError=qaFailures.map(c=>c.detail||c.message||c.name).filter(Boolean).join(" | ")||errorLines.slice(-6).join("\n")||"Demo production process exited with an error.";const ok=code===0&&finalFiles.length>0;const result={ok,exitCode:code,stage:qaFailures.length?"qa":ok?"complete":"production",qa,final:finalFiles,error:ok?null:runtimeError,log:log.slice(-12000)};updateProductionJob(job,{status:ok?"complete":"error",stage:ok?"complete":(qaFailures.length?"qa":"production"),progress:ok?100:job.progress,message:ok?"Demo ready.":"Production failed.",error:result.error,result});console.log("[BRAG] PRODUCE COMPLETE:",ok,job.id);});
+    return sendJson(res,202,{ok:true,jobId:job.id,status:job.status,stage:job.stage,progress:job.progress,message:job.message});
+  }catch(error){return sendJson(res,500,{ok:false,error:error instanceof Error?error.message:String(error),stage:"produce"});}
 }
+async function handleProductionStatus(req,res){if(!requireAuth(req,res))return;const u=new URL(req.url,`http://${req.headers.host||"localhost"}`);const jobId=safeJobId(u.searchParams.get("jobId"));if(!jobId)return sendJson(res,400,{ok:false,error:"A valid jobId is required."});const job=productionJobs.get(jobId);if(!job)return sendJson(res,404,{ok:false,error:"Production job not found or expired."});return sendJson(res,200,{ok:true,jobId:job.id,status:job.status,stage:job.stage,progress:job.progress,message:job.message,startedAt:job.startedAt,updatedAt:job.updatedAt,elapsedMs:job.elapsedMs,error:job.error,result:job.result});}
+setInterval(()=>{const cutoff=Date.now()-PRODUCTION_JOB_TTL;for(const [id,job] of productionJobs)if(Date.parse(job.startedAt)<cutoff)productionJobs.delete(id);},5*60*1000).unref();
 
 /* =========================================================
    HYPERFRAMES RENDER ENDPOINT
