@@ -150,13 +150,13 @@ export default function Home() {
               {stage === "inspecting" ? "Understanding..." : stage === "producing" ? "Making your demo..." : "Make my demo"}<span>{busy ? "●" : "→"}</span>
             </button>
           </div>
-          <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional: tell the director what matters most…" rows={2} />
           <div className="format-selector">
             <span className="format-label">OUTPUT</span>
             {([["16x9","16:9"],["1x1","1:1"],["9x16","9:16"]] as const).map(([value,label]) => (
               <button key={value} type="button" className={formats.includes(value) ? "format-chip selected" : "format-chip"} onClick={() => setFormats(current => current.includes(value) ? (current.length > 1 ? current.filter(item => item !== value) : current) : [...current, value])}>{label}<span>{formats.includes(value) ? "✓" : ""}</span></button>
             ))}
           </div>
+          <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional: tell the director what matters most…" rows={2} />
 
           {(stage === "producing" || stage === "error") && production && (
             <div className={`production-progress ${production.status === "error" ? "production-progress-error" : ""}`} aria-live="polite">
