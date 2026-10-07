@@ -6,9 +6,9 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends ffmpeg espeak-ng \
   && rm -rf /var/lib/apt/lists/*
 
-# Playwright image revisions can change the Chromium directory name.
-# Discover the installed Chromium binary instead of hard-coding a revision.
-RUN browser="$(find /ms-playwright -type f -path '*/chrome-linux/chrome' -perm -111 | head -n 1)" \
+# Playwright image revisions and directory layouts can change.
+# Discover the installed Chromium executable instead of hard-coding a revision.
+RUN browser="$(find /ms-playwright -type f -name chrome -perm -111 | head -n 1)" \
   && test -n "$browser" \
   && test -x "$browser" \
   && ln -sf "$browser" /usr/local/bin/hyperframes-chromium
