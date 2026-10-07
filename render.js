@@ -386,10 +386,16 @@ const landscapeY = Math.max(0, (landscapeHeight - size.height) / 2);
 const framing = size.height > size.width
   ? `scale=${scaledWidth.toFixed(2)}:${size.height.toFixed(2)},crop=${size.width}:${size.height}:${portraitX.toFixed(2)}:0`
   : `scale=${size.width}:${landscapeHeight.toFixed(2)},crop=${size.width}:${size.height}:0:${landscapeY.toFixed(2)}`;
+const zoomFrom = Math.max(1, Number(scene.motion?.from) || 1);
+const zoomTo = Math.max(1, Number(scene.motion?.to) || 1);
+const zoom = `${zoomFrom.toFixed(3)}+(${zoomTo.toFixed(3)}-${zoomFrom.toFixed(3)})*t/${duration.toFixed(3)}`;
+const focusNorm = Math.max(0, Math.min(1, focusX / inputWidth));
+const motionFilter = `scale=iw*(${zoom}):ih*(${zoom}):eval=frame,crop=${size.width}:${size.height}:x=(iw-${size.width})*${focusNorm.toFixed(4)}:y=(ih-${size.height})/2`;
 filters = [
   `trim=start=${start.toFixed(3)}:duration=${clipDuration.toFixed(3)}`,
   "setpts=PTS-STARTPTS",
   framing,
+  motionFilter,
   ...common
 ];
 
