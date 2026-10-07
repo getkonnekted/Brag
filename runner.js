@@ -25,6 +25,11 @@ return String(value || "")
 function isCreationProduct(intelligence) {
 if (!intelligence) return false;
 
+const requested = String(process.env.DEMO_USER_INTENT || intelligence.userIntent || "").toLowerCase();
+if (/\b(issue|issues|project|projects|workflow|workflows|task|tasks|ticket|tickets|priorit|assign|track|planning|execution|organize|organized)\b/.test(requested)) {
+return false;
+}
+
 if (intelligence.archetype === "creation-workflow") {
 return true;
 }
