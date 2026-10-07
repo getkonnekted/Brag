@@ -49,7 +49,7 @@ function buildIntelligence(inspection = {}) {
   const headings = (inspection.headings || inspection.evidence?.headings || []).map(clean).filter(Boolean);
   const buttons = (inspection.buttons || inspection.evidence?.uiLabels || []).map(item => clean(typeof item === "string" ? item : item.text)).filter(Boolean);
   const links = (inspection.links || []).map(item => clean(typeof item === "string" ? item : item.text)).filter(Boolean);
-  const userIntent = clean(inspection.userIntent || inspection.request?.description || "");
+  const userIntent = clean(process.env.DEMO_USER_INTENT || inspection.userIntent || inspection.request?.description || "");
   const corpus = [userIntent, inspection.title, inspection.description, inspection.product?.name, inspection.product?.description, ...headings, ...buttons, ...links].filter(Boolean).join(" ");
   const s = inspection.signals || {};
   const signals = {
