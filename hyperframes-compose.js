@@ -86,9 +86,9 @@ video{width:100%;height:100%;object-fit:cover}
 </head>
 <body>
 <div id="main" data-composition-id="main" data-start="0" data-width="1920" data-height="1080" data-duration="${duration}">
-  <div class="stage clip" data-start="0" data-duration="${duration}" data-track-index="0">
+  <div class="stage clip" data-duration="${duration}" data-track-index="0">
     <div class="frame">
-      <video class="clip" src="assets/${assetName}" data-start="0" data-duration="${duration}" data-track-index="0" autoplay muted playsinline></video>
+      <video id="real-product-footage" class="clip" src="assets/${assetName}" data-start="0" data-duration="${duration}" data-track-index="0" autoplay muted playsinline></video>
       <div class="scrim"></div>
       <div class="vignette"></div>
     </div>
@@ -106,7 +106,7 @@ tl.from(".frame", { opacity: 0, scale: 1.035, duration: 0.55, ease: "power2.out"
 tl.from(".brand,.pill", { opacity: 0, y: -8, duration: 0.35, stagger: 0.08 }, 0.15);
 tl.from(".kicker,.title", { opacity: 0, y: 28, duration: 0.65, stagger: 0.08, ease: "power3.out" }, 0.35);
 tl.to(".title,.kicker,.pill,.scrim", { opacity: 0, duration: 0.55, ease: "power2.inOut" }, Math.max(2.1, revealEnd - 2.2));
-tl.to(".frame", { scale: 1.012, duration: Math.max(0.8, revealEnd - 2.1), ease: "none" }, 0);
+tl.to(".frame", { scale: 1.012, duration: Math.max(0.8, revealEnd - 2.1), ease: "none", overwrite: "auto" }, 0);
 window.__timelines["main"] = tl;
 </script>
 </body>
