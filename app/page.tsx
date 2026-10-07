@@ -17,7 +17,12 @@ export default function Home() {
   const [videoUrls, setVideoUrls] = useState<Record<"16x9" | "9x16", string>>({ "16x9": "", "9x16": "" });
 
   useEffect(() => {
-    setEngineUrl(localStorage.getItem("demo_engine_url") || DEFAULT_ENGINE);
+    const saved = localStorage.getItem("demo_engine_url") || "";
+    const isDeployed = typeof window !== "undefined" && window.location.protocol === "https:";
+    const isStaleLocal = /^(https?:\\/\\/)?(localhost|127\\.0\\.0\\.1)(:\\d+)?/i.test(saved);
+
+    // Never let an old localhost setting break the deployed demo.
+    setEngineUrl(isDeployed && isStaleLocal ? DEFAULT_ENGINE : (saved || DEFAULT_ENGINE));
     setEngineToken(localStorage.getItem("demo_engine_token") || "");
   }, []);
 
@@ -47,7 +52,13 @@ export default function Home() {
     setStage("inspecting");
 
     try {
-      const health = await fetch(ENGINE + "/api/health", { cache: "no-store" });
+      if (!ENGINE || ENGINE.startsWith("http://localhost") || ENGINE.startsWith("http://127.0.0.1")) {
+        throw new Error("Demo engine is set to a local address. Open Engine settings and use the remote engine URL.");
+      }
+
+      const health = await fetch(ENGINE + "/api/health", { cache: "no-store" }).catch(() => {
+        throw new Error("Could not reach the demo engine. Check the remote engine URL in Engine settings.");
+      });
       if (!health.ok) throw new Error("Demo engine is not reachable.");
 
       const inspectResponse = await fetch(ENGINE + "/api/inspect", {
