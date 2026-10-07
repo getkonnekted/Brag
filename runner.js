@@ -62,14 +62,14 @@ if (!href) return false;
 try {
 const url = new URL(href, origin);
 
-```
+
 return (
   url.origin === origin &&
   !["mailto:", "tel:", "javascript:"].includes(
     url.protocol
   )
 );
-```
+
 
 } catch {
 return false;
@@ -88,7 +88,7 @@ elements
 const rect =
 element.getBoundingClientRect();
 
-```
+
       const rawText =
         element.innerText ||
         element.value ||
@@ -126,7 +126,7 @@ element.getBoundingClientRect();
         action.text
     )
 );
-```
+
 
 }
 
@@ -186,7 +186,7 @@ async function inspectForDirector(page, url) {
 return {
 url,
 
-```
+
 title: await page.title(),
 
 description: await page
@@ -245,7 +245,7 @@ links: await page
           item.href
       )
   )
-```
+
 
 };
 }
@@ -269,7 +269,7 @@ elements
 const rect =
 element.getBoundingClientRect();
 
-```
+
         return {
           index,
           tag:
@@ -302,7 +302,7 @@ for (const candidate of candidates) {
     };
   }
 }
-```
+
 
 }
 
@@ -414,7 +414,7 @@ if (creationStep === 1) {
 startX =
 centerX - width / 2;
 
-```
+
 startY =
   centerY - height / 2;
 
@@ -423,13 +423,13 @@ endX =
 
 endY =
   centerY + height / 2;
-```
+
 
 } else if (creationStep === 2) {
 startX =
 centerX - width * 0.95;
 
-```
+
 startY =
   centerY + height * 0.75;
 
@@ -438,13 +438,13 @@ endX =
 
 endY =
   centerY + height * 0.75;
-```
+
 
 } else if (creationStep === 3) {
 startX =
 centerX + width * 0.15;
 
-```
+
 startY =
   centerY + height * 0.75;
 
@@ -453,13 +453,13 @@ endX =
 
 endY =
   centerY + height * 0.75;
-```
+
 
 } else {
 startX =
 centerX - width * 0.8;
 
-```
+
 startY =
   centerY - height * 0.9;
 
@@ -468,7 +468,7 @@ endX =
 
 endY =
   centerY + height * 0.9;
-```
+
 
 }
 
@@ -503,7 +503,7 @@ await page.mouse.up();
 return {
 success: true,
 
-```
+
 type: "canvas-draw",
 
 action:
@@ -536,7 +536,7 @@ coordinates: {
   endY:
     Math.round(endY)
 }
-```
+
 
 };
 }
@@ -571,7 +571,7 @@ await page
 return {
 step,
 
-```
+
 type:
   "state-captured",
 
@@ -612,7 +612,7 @@ shot: shot
         shot.duration
     }
   : null
-```
+
 
 };
 }
@@ -656,7 +656,7 @@ width: 1440,
 height: 900
 },
 
-```
+
   recordVideo: {
     dir: path.join(
       outputDir,
@@ -668,7 +668,7 @@ height: 900
     }
   }
 });
-```
+
 
 const page =
 await context.newPage();
@@ -730,12 +730,12 @@ page.on(
 () => {
 pageCrashed = true;
 
-```
+
   errors.push(
     "Page crashed during capture."
   );
 }
-```
+
 
 );
 
@@ -746,7 +746,7 @@ waitUntil:
 timeout: 30000
 });
 
-```
+
 await waitForStability(
   page
 );
@@ -1343,20 +1343,20 @@ fs.writeFileSync(
 await browser.close();
 
 return manifest;
-```
+
 
 } catch (error) {
 await context
 .close()
 .catch(() => {});
 
-```
+
 await browser
   .close()
   .catch(() => {});
 
 throw error;
-```
+
 
 }
 }
@@ -1370,9 +1370,9 @@ console.error(
 "Usage: node runner.js https://example.com [maxSteps]"
 );
 
-```
+
 process.exit(1);
-```
+
 
 }
 
@@ -1395,10 +1395,10 @@ error.stack ||
 error
 );
 
-```
+
   process.exit(1);
 });
-```
+
 
 }
 
