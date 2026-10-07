@@ -5,8 +5,12 @@ const { execFileSync, spawnSync } = require("child_process");
 const url = process.argv.find(arg => /^https?:\/\//i.test(arg)) || null;
 const checkOnly = process.argv.includes("--check");
 
-function progress(stage, percent, message) { console.log(`DEMO_PROGRESS ${JSON.stringify({ stage, percent, message, at:new Date().toISOString() })}`); }\n\nfunction run(label, script, args = [], stage = "running", percent = 0, message = label) {\n  progress(stage, percent, message);
-  console.log("\n=== " + label + " ===");
+function progress(stage, percent, message) { console.log(`DEMO_PROGRESS ${JSON.stringify({ stage, percent, message, at:new Date().toISOString() })}`); }
+
+function run(label, script, args = [], stage = "running", percent = 0, message = label) {
+  progress(stage, percent, message);
+  console.log("
+=== " + label + " ===");
   const result = spawnSync(process.execPath, [script, ...args], {
     stdio: ["inherit", "pipe", "pipe"],
     env: process.env,
@@ -15,13 +19,17 @@ function progress(stage, percent, message) { console.log(`DEMO_PROGRESS ${JSON.s
 
   const stdout = (result.stdout || "").trim();
   const stderr = (result.stderr || "").trim();
-  if (stdout) process.stdout.write(stdout + "\n");
-  if (stderr) process.stderr.write(stderr + "\n");
+  if (stdout) process.stdout.write(stdout + "
+");
+  if (stderr) process.stderr.write(stderr + "
+");
 
   if (result.status !== 0) {
     throw new Error(
       label + " failed with exit code " + result.status +
-      ((stdout || stderr) ? "\n" + [stdout, stderr].filter(Boolean).join("\n") : "")
+      ((stdout || stderr) ? "
+" + [stdout, stderr].filter(Boolean).join("
+") : "")
     );
   }
 }
@@ -101,7 +109,9 @@ function main() {
     }, null, 2)
   );
 
-  progress("complete",100,"Demo ready.");\n  console.log("\nBRAG production complete: " + output);
+  progress("complete",100,"Demo ready.");
+  console.log("
+BRAG production complete: " + output);
 }
 
 main();
