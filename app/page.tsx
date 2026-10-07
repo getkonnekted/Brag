@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-type Stage = "idle" | "inspecting" | "producing" | "ready" | "error";\ntype ProductionStatus = { status:string; stage:string; progress:number; message:string; elapsedMs?:number; error?:string|null; result?:any };
+type Stage = "idle" | "inspecting" | "producing" | "ready" | "error";
+type ProductionStatus = { status:string; stage:string; progress:number; message:string; elapsedMs?:number; error?:string|null; result?:any };
 
 const DEFAULT_ENGINE = (process.env.NEXT_PUBLIC_DEMO_ENGINE_URL || "http://localhost:4173").replace(/\/$/, "");
 
@@ -14,7 +15,8 @@ export default function Home() {
   const [engineUrl, setEngineUrl] = useState(DEFAULT_ENGINE);
   const [engineToken, setEngineToken] = useState("");
   const [product, setProduct] = useState("your product");
-  const [videoUrls, setVideoUrls] = useState<Record<"16x9" | "9x16", string>>({ "16x9": "", "9x16": "" });\n  const [production, setProduction] = useState<ProductionStatus | null>(null);
+  const [videoUrls, setVideoUrls] = useState<Record<"16x9" | "9x16", string>>({ "16x9": "", "9x16": "" });
+  const [production, setProduction] = useState<ProductionStatus | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem("demo_engine_url") || "";
