@@ -33,34 +33,15 @@ function safeFallback() {
     throw new Error("Hyperframes fallback source footage is missing.");
   }
 
-  const html = fs.readFileSync(path.join(compositionDir, "index.html"), "utf8");
-  const titleMatch = html.match(/id="title"[^>]*>([\s\S]*?)<span id="promise">/i);
-  const promiseMatch = html.match(/id="promise"[^>]*>([\s\S]*?)<\/span>/i);
-  const titleFile = path.join(compositionDir, "fallback-title.txt");
-  const promiseFile = path.join(compositionDir, "fallback-promise.txt");
-
-  writeTextFile(titleFile, titleMatch ? titleMatch[1] : "DEMO.");
-  writeTextFile(promiseFile, promiseMatch ? promiseMatch[1] : "Real product. Real workflow. Real proof.");
-
-  const fontCandidates = [
-    process.env.DEMO_FONT,
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-    "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf"
-  ].filter(Boolean);
-  const font = fontCandidates.find(fs.existsSync);
-  if (!font) throw new Error("No fallback renderer font is available.");
-
   const vf = [
     "scale=1920:1080:force_original_aspect_ratio=decrease",
     "pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black",
-    "drawbox=x=0:y=0:w=iw:h=260:color=black@0.38:t=fill",
-    "drawbox=x=0:y=ih-420:w=iw:h=420:color=black@0.62:t=fill",
-    "drawtext=fontfile='" + font.replace(/'/g, "\\'") + "':text='DEMO. / REAL PRODUCT':x=135:y=78:fontsize=28:fontcolor=white@0.92:fontweight=600",
-    "drawtext=fontfile='" + font.replace(/'/g, "\\'") + "':textfile='" + titleFile.replace(/'/g, "\\'") + "':x=135:y=700:fontsize=82:fontcolor=white:line_spacing=8:fix_bounds=true",
-    "drawtext=fontfile='" + font.replace(/'/g, "\\'") + "':textfile='" + promiseFile.replace(/'/g, "\\'") + "':x=135:y=800:fontsize=42:fontcolor=white@0.78:line_spacing=8:fix_bounds=true"
+    "drawbox=x=0:y=0:w=iw:h=260:color=black@0.28:t=fill",
+    "drawbox=x=0:y=ih-300:w=iw:h=300:color=black@0.48:t=fill"
   ].join(",");
 
-  console.log("\nHyperframes render stalled. Using deterministic FFmpeg delivery fallback.");
+  console.log("\nHyperframes render stalled. Using deterministic FFmpeg real-footage fallback.");
+
   const result = spawnSync(
     process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg",
     [
