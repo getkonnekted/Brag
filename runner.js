@@ -750,12 +750,12 @@ timeout: 30000
 const requestSummary = requestFailures
 .slice(-8)
 .map(item =>
-\`\${item.url} — \${item.failure}\`
+`${item.url} — ${item.failure}`
 )
-.join("\\n");
+.join("\n");
 
 throw new Error(
-\`Navigation failed for \${url}: \${error.message}\\n\${requestSummary ? "Recent request failures:\\n" + requestSummary : "No request failures were recorded."}\`
+`Navigation failed for ${url}: ${error.message}\n${requestSummary ? "Recent request failures:\n" + requestSummary : "No request failures were recorded."}`
 );
 }
 
