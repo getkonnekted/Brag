@@ -17,7 +17,12 @@ function run(args) {
     ["hyperframes", ...args],
     {
       cwd: compositionDir,
-      env: { ...process.env, PRODUCER_FORCE_SCREENSHOT: process.env.PRODUCER_FORCE_SCREENSHOT || "true" },
+      env: {
+        ...process.env,
+        HYPERFRAMES_BROWSER_PATH: browserPath,
+        PRODUCER_HEADLESS_SHELL_PATH: browserPath,
+        PRODUCER_FORCE_SCREENSHOT: process.env.PRODUCER_FORCE_SCREENSHOT || "true"
+      },
       stdio: "inherit"
     }
   );
@@ -45,24 +50,19 @@ console.log("demo. → Hyperframes");
 console.log("Composition:", compositionDir);
 console.log("Output:", outputFile);
 
-// Railway builds the image without downloading the Hyperframes browser.
-// Ensure the browser exists at runtime, when the container is actually running.
-console.log("\n$ npx hyperframes browser ensure");
-const browserEnsure = spawnSync(
-  process.platform === "win32" ? "npx.cmd" : "npx",
-  ["hyperframes", "browser", "ensure"],
-  {
-    cwd: compositionDir,
-    env: process.env,
-    stdio: "inherit"
-  }
-);
+// Railway uses a Docker image with Chromium already installed.
+// Never download HyperFrames' 114 MB bundled Chrome at runtime.
+const browserPath =
+  process.env.HYPERFRAMES_BROWSER_PATH ||
+  process.env.PRODUCER_HEADLESS_SHELL_PATH ||
+  "/usr/bin/chromium";
 
-if (browserEnsure.status !== 0) {
-  console.error("Hyperframes browser setup failed.");
-  process.exit(browserEnsure.status || 1);
+if (!fs.existsSync(browserPath)) {
+  console.error("Configured Chromium executable not found:", browserPath);
+  process.exit(1);
 }
 
+console.log("Chromium:", browserPath);
 run(["check", "--no-browser-gpu"]);
 run(["render", "--output", outputFile, "--no-browser-gpu"]);
 
