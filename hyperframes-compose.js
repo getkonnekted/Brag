@@ -57,8 +57,39 @@ const gsapTarget = path.join(assetsDir, "gsap.min.js");
 if (!fs.existsSync(gsapSource)) throw new Error("GSAP runtime not installed. Run npm install before composing.");
 fs.copyFileSync(gsapSource, gsapTarget);
 
-const assetName = "real-product-footage.webm";
-fs.copyFileSync(footagePath, path.join(assetsDir, assetName));
+const assetName = "real-product-footage.mp4";
+const normalizedFootagePath = path.join(assetsDir, assetName);
+
+// Hyperframes seeks the footage repeatedly during composition. Normalize the
+// browser recording to CFR H.264 with regular keyframes so seeks cannot land
+// between sparse WebM keyframes and freeze the screenshot renderer.
+const transcode = spawnSync(
+  process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg",
+  [
+    "-y",
+    "-hide_banner",
+    "-loglevel", "error",
+    "-i", footagePath,
+    "-an",
+    "-c:v", "libx264",
+    "-preset", "veryfast",
+    "-pix_fmt", "yuv420p",
+    "-r", "30",
+    "-g", "30",
+    "-keyint_min", "30",
+    "-sc_threshold", "0",
+    "-movflags", "+faststart",
+    normalizedFootagePath
+  ],
+  { encoding: "utf8" }
+);
+
+if (transcode.status !== 0 || !fs.existsSync(normalizedFootagePath) || fs.statSync(normalizedFootagePath).size === 0) {
+  throw new Error(
+    "Could not normalize real product footage for Hyperframes." +
+    (transcode.stderr ? " " + transcode.stderr.trim() : "")
+  );
+}
 
 const label = states[0] && states[0].action
   ? states[0].action.text
