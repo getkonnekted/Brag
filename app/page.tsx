@@ -174,7 +174,7 @@ export default function Home() {
               </div>
             </div>
           )}
-          {error && <div className="error">{error}</div>
+          {error && <div className="error">{error}</div>}
           {stage === "ready" && <div className="success"><span>●</span> Demo ready — real product footage captured and rendered.</div>}
         </div>
         <div className="hero-note"><span>REAL PRODUCT</span><i>·</i><span>REAL INTERACTION</span><i>·</i><span>REAL PROOF</span></div>
