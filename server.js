@@ -749,6 +749,104 @@ async function handleProduce(
 }
 
 /* =========================================================
+   HYPERFRAMES RENDER ENDPOINT
+========================================================= */
+
+function safeJobId(value) {
+  const id = String(value || "").trim();
+  return /^[a-zA-Z0-9_-]{1,80}$/.test(id) ? id : null;
+}
+
+async function handleHyperframesRender(req, res) {
+  if (!requireAuth(req, res)) return;
+
+  try {
+    const data = await readBody(req);
+    const jobId = safeJobId(data.jobId) || `job-${Date.now()}`;
+    const files = data.files && typeof data.files === "object" ? data.files : null;
+
+    if (!files || typeof files["index.html"] !== "string") {
+      return sendJson(res, 400, {
+        ok: false,
+        error: "A Hyperframes job requires files.index.html."
+      });
+    }
+
+    const jobRoot = path.resolve(ROOT, "output", "hyperframes", jobId);
+    const compositionDir = path.join(jobRoot, "composition");
+    const outputFile = path.join(jobRoot, "brag.mp4");
+
+    fs.rmSync(jobRoot, { recursive: true, force: true });
+    fs.mkdirSync(compositionDir, { recursive: true });
+
+    for (const [relativePath, value] of Object.entries(files)) {
+      if (typeof value !== "string") continue;
+      const normalized = String(relativePath).replace(/\\\\/g, "/").replace(/^\\/+/, "");
+      if (!normalized || normalized.includes("..") || path.isAbsolute(normalized)) {
+        return sendJson(res, 400, { ok: false, error: `Invalid composition path: ${relativePath}` });
+      }
+      const target = path.resolve(compositionDir, normalized);
+      if (!target.startsWith(compositionDir + path.sep) && target !== compositionDir) {
+        return sendJson(res, 400, { ok: false, error: `Invalid composition path: ${relativePath}` });
+      }
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.writeFileSync(target, value, "utf8");
+    }
+
+    console.log("[BRAG] HYPERFRAMES RENDER START:", jobId);
+
+    const child = spawn(
+      process.platform === "win32" ? "npx.cmd" : "npx",
+      ["hyperframes", "check"],
+      { cwd: compositionDir, env: process.env }
+    );
+
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", chunk => { stdout += chunk.toString(); });
+    child.stderr.on("data", chunk => { stderr += chunk.toString(); });
+
+    const checkCode = await new Promise(resolve => child.on("close", resolve));
+    if (checkCode !== 0) {
+      return sendJson(res, 422, {
+        ok: false, jobId, stage: "check",
+        error: "Hyperframes composition check failed.",
+        log: (stdout + "\\n" + stderr).slice(-12000)
+      });
+    }
+
+    const render = spawn(
+      process.platform === "win32" ? "npx.cmd" : "npx",
+      ["hyperframes", "render", "--output", outputFile],
+      { cwd: compositionDir, env: process.env }
+    );
+    stdout = "";
+    stderr = "";
+    render.stdout.on("data", chunk => { stdout += chunk.toString(); console.log("[HYPERFRAMES]", chunk.toString().trim()); });
+    render.stderr.on("data", chunk => { stderr += chunk.toString(); console.error("[HYPERFRAMES]", chunk.toString().trim()); });
+
+    const renderCode = await new Promise(resolve => render.on("close", resolve));
+    const exists = fs.existsSync(outputFile);
+
+    return sendJson(res, renderCode === 0 && exists ? 200 : 500, {
+      ok: renderCode === 0 && exists,
+      jobId,
+      stage: renderCode === 0 && exists ? "complete" : "render",
+      output: exists ? `output/hyperframes/${jobId}/brag.mp4` : null,
+      error: renderCode === 0 && exists ? null : "Hyperframes render failed.",
+      log: (stdout + "\\n" + stderr).slice(-12000)
+    });
+  } catch (error) {
+    console.error("[BRAG] HYPERFRAMES ERROR:", error);
+    return sendJson(res, 500, {
+      ok: false,
+      stage: "hyperframes",
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+}
+
+/* =========================================================
    MEDIA DELIVERY
 ========================================================= */
 
