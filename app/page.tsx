@@ -108,16 +108,11 @@ export default function Home() {
       if(!nextVideos["16x9"]) nextVideos["16x9"]=`${ENGINE}/api/media?file=${encodeURIComponent("output/final/product-demo-16x9.mp4")}${engineToken?`&token=${encodeURIComponent(engineToken)}`:""}`;
       if(!nextVideos["9x16"]) nextVideos["9x16"]=`${ENGINE}/api/media?file=${encodeURIComponent("output/final/product-demo-9x16.mp4")}${engineToken?`&token=${encodeURIComponent(engineToken)}`:""}`;
 
-      const playable = await Promise.all((Object.entries(nextVideos) as ["16x9"|"9x16",string][]).map(async ([format,mediaUrl]) => {
-        try {
-          const response = await fetch(mediaUrl,{method:"HEAD",cache:"no-store"});
-          return [format,response.ok] as const;
-        } catch { return [format,false] as const; }
-      }));
-      for(const [format,ok] of playable){ if(!ok) nextVideos[format]=""; }
+      // Artifact paths returned by the engine are authoritative. Do not use
+      // browser-side HEAD requests as the success test for video delivery.
       setVideoUrls(nextVideos);
-      if(!nextVideos["16x9"]&&!nextVideos["9x16"]){
-        throw new Error("Production completed, but the engine could not serve either rendered video. The render worker needs attention.");
+      if (!nextVideos["16x9"] && !nextVideos["9x16"]) {
+        throw new Error("The engine finished, but no delivery video was reported. Check the Railway production log for the artifact handoff.");
       }
 
       setStage("ready");
