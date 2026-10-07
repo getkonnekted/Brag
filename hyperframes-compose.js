@@ -79,8 +79,8 @@ video{width:100%;height:100%;object-fit:cover}
 .scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.52),transparent 36%,rgba(0,0,0,.68));pointer-events:none}
 .vignette{position:absolute;inset:0;box-shadow:inset 0 0 140px rgba(0,0,0,.72);pointer-events:none}
 .brand{position:absolute;left:135px;top:78px;font:600 14px ui-monospace,monospace;letter-spacing:.16em}
-.kicker{position:absolute;left:135px;bottom:255px;max-width:1420px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font:500 12px ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;opacity:.72}
-.title{position:absolute;left:135px;bottom:78px;max-width:1420px;font-size:clamp(42px,6vw,88px);line-height:.95;letter-spacing:-.045em;font-weight:650}
+.kicker{position:absolute;left:135px;top:118px;max-width:1420px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font:500 12px ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;opacity:.72}
+.title{position:absolute;left:135px;bottom:72px;max-width:1420px;max-height:230px;overflow:hidden;font-size:clamp(42px,6vw,88px);line-height:.95;letter-spacing:-.045em;font-weight:650}
 .pill{position:absolute;right:135px;top:78px;border:1px solid #777;border-radius:999px;padding:9px 14px;font:500 11px ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;background:#0008}
 </style>
 </head>
