@@ -781,7 +781,7 @@ async function handleHyperframesRender(req, res) {
 
     for (const [relativePath, value] of Object.entries(files)) {
       if (typeof value !== "string") continue;
-      const normalized = String(relativePath).replace(/\\\\/g, "/").replace(/^\\/+/, "");
+      const normalized = String(relativePath).replace(/\\/g, "/").replace(/^\/+/, "");
       if (!normalized || normalized.includes("..") || path.isAbsolute(normalized)) {
         return sendJson(res, 400, { ok: false, error: `Invalid composition path: ${relativePath}` });
       }
