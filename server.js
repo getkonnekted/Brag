@@ -666,17 +666,29 @@ async function handleProduce(
             /(?:SyntaxError|Unexpected token|Invalid regular expression)[\\s\\S]{0,500}/i
           );
 
+        const qaFailures = Array.isArray(qa?.checks)
+          ? qa.checks.filter(check => check.status === "fail")
+          : [];
+
+        const runtimeError =
+          syntaxMatch?.[0] ||
+          (qaFailures.length
+            ? qaFailures
+                .map(check => check.detail || check.message || check.name)
+                .filter(Boolean)
+                .join(" | ")
+            : null) ||
+          stderr.trim().split("\n").filter(Boolean).slice(-12).join("\n") ||
+          stdout.trim().split("\n").filter(Boolean).slice(-12).join("\n") ||
+          "Demo production process exited with an error.";
+
         const result = {
           ok: code === 0,
           exitCode: code,
+          stage: qaFailures.length ? "qa" : code === 0 ? "complete" : "production",
           qa,
           final: finalFiles,
-          error: code === 0
-            ? null
-            : (
-                syntaxMatch?.[0] ||
-                "Demo production process exited with an error."
-              ),
+          error: code === 0 ? null : runtimeError,
           log: combinedLog.slice(-12000)
         };
 
