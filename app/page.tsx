@@ -86,13 +86,32 @@ export default function Home() {
       const jobId=produceData.jobId;
       setProduction({status:"running",stage:produceData.stage||"preflight",progress:produceData.progress||2,message:produceData.message||"Starting production…"});
       let finished:any=null;
+      let consecutivePollFailures=0;
       for(;;){
         await new Promise(resolve=>setTimeout(resolve,1000));
-        const sr=await fetch(`${ENGINE}/api/produce/status?jobId=${encodeURIComponent(jobId)}`,{cache:"no-store",headers:engineToken?{Authorization:`Bearer ${engineToken}`}:{}});
-        const sd=await sr.json().catch(()=>({}));
-        if(!sr.ok)throw new Error(sd.error||"Lost contact with the production engine.");
-        setProduction(sd);
-        if(sd.status==="complete"||sd.status==="error"){finished=sd;break;}
+        try {
+          const sr=await fetch(`${ENGINE}/api/produce/status?jobId=${encodeURIComponent(jobId)}`,{
+            cache:"no-store",
+            headers:engineToken?{Authorization:`Bearer ${engineToken}`}:{},
+          });
+          const sd=await sr.json().catch(()=>({}));
+          if(!sr.ok) throw new Error(sd.error||"Production status request failed.");
+          consecutivePollFailures=0;
+          setProduction(sd);
+          if(sd.status==="complete"||sd.status==="error"){finished=sd;break;}
+        } catch (pollError) {
+          consecutivePollFailures += 1;
+          // Mobile connections can briefly drop during long real-browser capture.
+          // Keep the Railway job alive and retry instead of failing the UI immediately.
+          if(consecutivePollFailures >= 6){
+            throw new Error("Lost contact with the production engine after several retries. The Railway job may still be running; check the production status and try again.");
+          }
+          setProduction(current => current ? {
+            ...current,
+            message: `Reconnecting to the production engine… retry ${consecutivePollFailures}/5`
+          } : current);
+          await new Promise(resolve=>setTimeout(resolve,Math.min(5000,1000*consecutivePollFailures)));
+        }
       }
       const produceResult=finished?.result;
       if(finished?.status!=="complete"||!produceResult?.ok)throw new Error(finished?.error||produceResult?.error||"Could not produce the demo.");
