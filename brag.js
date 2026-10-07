@@ -33,18 +33,42 @@ function run(
         ...args
       ],
       {
-        stdio:
+        stdio: [
           "inherit",
+          "pipe",
+          "pipe"
+        ],
         env:
-          process.env
+          process.env,
+        encoding: "utf8"
       }
     );
+
+  const stdout =
+    (result.stdout || "").trim();
+  const stderr =
+    (result.stderr || "").trim();
+
+  if (stdout) {
+    process.stdout.write(stdout + "\n");
+  }
+
+  if (stderr) {
+    process.stderr.write(stderr + "\n");
+  }
 
   if (
     result.status !== 0
   ) {
+    const output = [
+      stdout,
+      stderr
+    ]
+      .filter(Boolean)
+      .join("\n");
+
     throw new Error(
-      `${label} failed with exit code ${result.status}`
+      `${label} failed with exit code ${result.status}${output ? `\n${output}` : ""}`
     );
   }
 }
