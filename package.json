@@ -33,7 +33,7 @@
     "next": "^16.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "hyperframes": "^0.8.138",
+    "hyperframes": "0.8.134",
     "gsap": "^3.14.2"
   },
   "devDependencies": {
