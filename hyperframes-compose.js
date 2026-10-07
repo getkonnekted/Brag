@@ -31,6 +31,19 @@ function esc(v) {
     .replace(/"/g, "&quot;");
 }
 
+function fitCopy(value, maxChars) {
+  const clean = String(value || "").replace(/\s+/g, " ").trim();
+  if (clean.length <= maxChars) return clean;
+  const words = clean.split(" ");
+  let out = "";
+  for (const word of words) {
+    const next = out ? out + " " + word : word;
+    if (next.length > maxChars - 1) break;
+    out = next;
+  }
+  return (out || clean.slice(0, maxChars - 1)).trim() + "…";
+}
+
 function durationSeconds(file) {
   const result = spawnSync(
     process.platform === "win32" ? "ffprobe.exe" : "ffprobe",
@@ -45,7 +58,6 @@ function durationSeconds(file) {
 }
 
 const sourceDuration = durationSeconds(footagePath);
-// /brag targets 15–25s. Keep the engine comfortably inside that contract so Hyperframes does not spend resources on unnecessary browser frames.
 const duration = Math.min(sourceDuration, 20);
 const compositionRoot = path.join(root, "hyperframes-composition");
 const compositionDir = path.join(compositionRoot, "composition");
@@ -62,43 +74,33 @@ fs.copyFileSync(gsapSource, gsapTarget);
 const assetName = "real-product-footage.mp4";
 const normalizedFootagePath = path.join(assetsDir, assetName);
 
-// Hyperframes seeks the footage repeatedly during composition. Normalize the
-// browser recording to CFR H.264 with regular keyframes so seeks cannot land
-// between sparse WebM keyframes and freeze the screenshot renderer.
 const transcode = spawnSync(
   process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg",
   [
-    "-y",
-    "-hide_banner",
-    "-loglevel", "error",
-    "-i", footagePath,
-    "-t", String(duration),
+    "-y", "-hide_banner", "-loglevel", "error",
+    "-i", footagePath, "-t", String(duration),
     "-vf", "scale=960:600:flags=lanczos,fps=24",
-    "-an",
-    "-c:v", "libx264",
-    "-preset", "veryfast",
-    "-pix_fmt", "yuv420p",
-    "-r", "24",
-    "-g", "24",
-    "-keyint_min", "24",
-    "-sc_threshold", "0",
-    "-crf", "30",
-    "-movflags", "+faststart",
-    normalizedFootagePath
+    "-an", "-c:v", "libx264", "-preset", "veryfast",
+    "-pix_fmt", "yuv420p", "-r", "24", "-g", "24",
+    "-keyint_min", "24", "-sc_threshold", "0", "-crf", "30",
+    "-movflags", "+faststart", normalizedFootagePath
   ],
   { encoding: "utf8" }
 );
 
 if (transcode.status !== 0 || !fs.existsSync(normalizedFootagePath) || fs.statSync(normalizedFootagePath).size === 0) {
-  throw new Error(
-    "Could not normalize real product footage for Hyperframes." +
-    (transcode.stderr ? " " + transcode.stderr.trim() : "")
-  );
+  throw new Error("Could not normalize real product footage for Hyperframes." +
+    (transcode.stderr ? " " + transcode.stderr.trim() : ""));
 }
 
 const label = states[0] && states[0].action
   ? states[0].action.text
   : (workflow[0] || "real product workflow");
+
+const safeName = fitCopy(name, 72);
+const safePromise = fitCopy(promise, 150);
+const safeLabel = fitCopy(label, 86);
+const safeArchetype = fitCopy(director.archetype || "product workflow", 34);
 
 const html = `<!doctype html>
 <html lang="en">
@@ -109,30 +111,29 @@ const html = `<!doctype html>
 <style>
 *{box-sizing:border-box}
 html,body{margin:0;width:1920px;height:1080px;overflow:hidden;background:#080808;color:#fff;font-family:Inter,system-ui,sans-serif}
-.stage{position:relative;width:1920px;height:1080px}
-.frame{position:absolute;left:115px;top:65px;width:1690px;height:950px;background:#111;border:1px solid #333;border-radius:22px;overflow:hidden;box-shadow:0 30px 100px #000}
-video{width:100%;height:100%;object-fit:cover}
-.scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.52),transparent 36%,rgba(0,0,0,.68));pointer-events:none}
-.vignette{position:absolute;inset:0;box-shadow:inset 0 0 140px rgba(0,0,0,.72);pointer-events:none}
-.brand{position:absolute;left:135px;top:78px;font:600 14px ui-monospace,monospace;letter-spacing:.16em}
-.kicker{position:absolute;left:135px;top:118px;max-width:1420px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font:500 12px ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;opacity:.72}
-.title{position:absolute;left:135px;bottom:72px;max-width:1420px;max-height:230px;overflow:hidden;font-size:clamp(42px,6vw,88px);line-height:.95;letter-spacing:-.045em;font-weight:650}
-.pill{position:absolute;right:135px;top:78px;border:1px solid #777;border-radius:999px;padding:9px 14px;font:500 11px ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;background:#0008}
+#main{position:relative;width:1920px;height:1080px;overflow:hidden}
+.frame{position:absolute;z-index:10;left:115px;top:65px;width:1690px;height:950px;background:#111;border:1px solid #333;border-radius:22px;overflow:hidden;box-shadow:0 30px 100px #000}
+video{display:block;width:100%;height:100%;object-fit:cover}
+.scrim{position:absolute;z-index:20;left:115px;top:65px;width:1690px;height:950px;border-radius:22px;background:linear-gradient(180deg,rgba(0,0,0,.52),transparent 36%,rgba(0,0,0,.68));pointer-events:none}
+.vignette{position:absolute;z-index:21;left:115px;top:65px;width:1690px;height:950px;border-radius:22px;box-shadow:inset 0 0 140px rgba(0,0,0,.72);pointer-events:none}
+.brand{position:absolute;z-index:40;left:135px;top:78px;font:600 14px ui-monospace,monospace;letter-spacing:.16em}
+.kicker{position:absolute;z-index:40;left:135px;top:118px;width:1420px;min-height:30px;white-space:normal;overflow-wrap:anywhere;font:500 12px/1.35 ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;opacity:.72}
+.pill{position:absolute;z-index:40;right:135px;top:78px;max-width:360px;min-height:38px;border:1px solid #777;border-radius:999px;padding:9px 14px;font:500 11px/1.2 ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;background:#0008;overflow-wrap:anywhere}
+.title{position:absolute;z-index:40;left:135px;bottom:72px;width:1420px;height:340px;max-height:340px;overflow-wrap:anywhere;white-space:normal;font-size:clamp(48px,5.2vw,82px);line-height:1.02;letter-spacing:-.045em;font-weight:650}
+#promise{display:block;max-width:1140px;margin-top:20px;font-size:clamp(28px,2.65vw,48px);line-height:1.12;letter-spacing:-.025em;font-weight:400;opacity:.78;overflow-wrap:anywhere;white-space:normal}
 </style>
 </head>
 <body>
 <div id="main" data-composition-id="main" data-start="0" data-width="1920" data-height="1080" data-duration="${duration}">
-  <div id="stage" class="stage clip" data-duration="${duration}" data-track-index="0">
-    <div id="product-frame" class="frame">
-      <video id="real-product-footage" class="clip" src="assets/${assetName}" data-start="0" data-duration="${duration}" data-track-index="0" autoplay muted playsinline></video>
-      <div id="scrim" class="scrim"></div>
-      <div id="vignette" class="vignette"></div>
-    </div>
-    <div id="brand" class="brand">DEMO. / REAL PRODUCT</div>
-    <div id="archetype-pill" class="pill">${esc(director.archetype || "product workflow")}</div>
-    <div id="workflow-kicker" class="kicker">${esc(label)}</div>
-    <div id="title" class="title">${esc(name)}<br><span id="promise" style="font-weight:400;opacity:.78">${esc(promise)}</span></div>
+  <div id="product-frame" class="frame">
+    <video id="real-product-footage" class="clip" src="assets/${assetName}" data-start="0" data-duration="${duration}" data-track-index="0" autoplay muted playsinline></video>
   </div>
+  <div id="scrim" class="scrim"></div>
+  <div id="vignette" class="vignette"></div>
+  <div id="brand" class="brand">DEMO. / REAL PRODUCT</div>
+  <div id="archetype-pill" class="pill">${esc(safeArchetype)}</div>
+  <div id="workflow-kicker" class="kicker">${esc(safeLabel)}</div>
+  <div id="title" class="title">${esc(safeName)}<span id="promise">${esc(safePromise)}</span></div>
 </div>
 <script>
 window.__timelines = window.__timelines || {};
