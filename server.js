@@ -12,6 +12,7 @@ const ENGINE_TOKEN = process.env.BRAG_ENGINE_TOKEN || "";
 const ALLOWED_ORIGIN = process.env.BRAG_ALLOWED_ORIGIN || "*";
 
 const ROOT = __dirname;
+const ENGINE_VERSION = "3.2";
 
 /* =========================================================
    RESPONSE HELPERS
@@ -971,7 +972,7 @@ const server =
             ok: true,
             service:
               "brag-engine",
-            version: "3.1",
+            version: ENGINE_VERSION,
             capabilities: [
               "inspect",
               "record",
@@ -1097,7 +1098,7 @@ server.listen(
     );
 
     console.log(
-      "BRAG ENGINE"
+      `BRAG ENGINE ${ENGINE_VERSION}`
     );
 
     console.log(
