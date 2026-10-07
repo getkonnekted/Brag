@@ -150,13 +150,13 @@ export default function Home() {
             </button>
           </div>
           <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional: tell the director what matters most…" rows={2} />
-          {stage === "producing" && production && (
-            <div className="production-progress" aria-live="polite">
+          {(stage === "producing" || stage === "error") && production && (
+            <div className={`production-progress ${production.status === "error" ? "production-progress-error" : ""}`} aria-live="polite">
               <div className="production-status-top">
-                <div className="production-live"><span className="production-pulse" /> LIVE PRODUCTION</div>
+                <div className="production-live"><span className="production-pulse" /> {production.status === "error" ? "PRODUCTION ERROR" : "LIVE PRODUCTION"}</div>
                 <span className="production-percent">{Math.round(production.progress)}%</span>
               </div>
-              <div className="production-message">{production.message}</div>
+              <div className="production-message">{production.status === "error" ? (production.error || production.message || "Production failed.") : production.message}</div>
               <div className="production-stage">{production.stage.toUpperCase()} · {Math.floor((production.elapsedMs || 0) / 1000)}s elapsed</div>
               <div className="production-track"><div className="production-fill" style={{width:Math.max(2,Math.min(100,production.progress))+"%"}} /></div>
               <div className="production-steps">
