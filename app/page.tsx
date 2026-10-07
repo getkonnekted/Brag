@@ -106,8 +106,14 @@ export default function Home() {
       // The engine writes these two delivery artifacts to stable paths. If an
       // older worker response omitted the final[] array, recover from those
       // known paths instead of throwing away a successful production.
-      if(!nextVideos["16x9"]) nextVideos["16x9"]=`${ENGINE}/api/media?file=${encodeURIComponent("output/final/product-demo-16x9.mp4")}${engineToken?`&token=${encodeURIComponent(engineToken)}`:""}`;
-      if(!nextVideos["9x16"]) nextVideos["9x16"]=`${ENGINE}/api/media?file=${encodeURIComponent("output/final/product-demo-9x16.mp4")}${engineToken?`&token=${encodeURIComponent(engineToken)}`:""}`;
+      const stableFiles:Record<"16x9"|"1x1"|"9x16",string>={
+        "16x9":"output/final/product-demo-16x9.mp4",
+        "1x1":"output/final/product-demo-1x1.mp4",
+        "9x16":"output/final/product-demo-9x16.mp4"
+      };
+      for(const format of formats){
+        if(!nextVideos[format]) nextVideos[format]=`${ENGINE}/api/media?file=${encodeURIComponent(stableFiles[format])}${engineToken?`&token=${encodeURIComponent(engineToken)}`:""}`;
+      }
 
       // Artifact paths returned by the engine are authoritative. Do not use
       // browser-side HEAD requests as the success test for video delivery.
