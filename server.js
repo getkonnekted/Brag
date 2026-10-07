@@ -506,6 +506,54 @@ async function handleProduce(
       data.url
     );
 
+    /*
+     * Fail fast with a useful compiler error before starting production.
+     * This prevents the frontend from showing only the tail of a Node stack.
+     */
+    const syntaxTargets = [
+      "brag.js",
+      "capture.js",
+      "director.js",
+      "runner.js",
+      "demo.js",
+      "edit-plan.js",
+      "voice.js",
+      "render.js",
+      "qa.js"
+    ];
+
+    for (const target of syntaxTargets) {
+      const check = spawnSync(
+        process.execPath,
+        ["--check", target],
+        {
+          cwd: ROOT,
+          env: process.env,
+          encoding: "utf8"
+        }
+      );
+
+      if (check.status !== 0) {
+        const compilerLog = (
+          check.stderr ||
+          check.stdout ||
+          `Node syntax check failed for ${target}.`
+        ).trim();
+
+        console.error(
+          "[BRAG] SYNTAX ERROR:",
+          compilerLog
+        );
+
+        return sendJson(res, 500, {
+          ok: false,
+          error: `Engine code check failed in ${target}.`,
+          stage: "preflight",
+          log: compilerLog.slice(-12000)
+        });
+      }
+    }
+
     const child = spawn(
       process.execPath,
       args,
@@ -607,16 +655,29 @@ async function handleProduce(
             )
           );
 
+        const combinedLog = (
+          stdout +
+          "\n" +
+          stderr
+        ).trim();
+
+        const syntaxMatch =
+          combinedLog.match(
+            /(?:SyntaxError|Unexpected token|Invalid regular expression)[\\s\\S]{0,500}/i
+          );
+
         const result = {
           ok: code === 0,
           exitCode: code,
           qa,
           final: finalFiles,
-          log: (
-            stdout +
-            "\n" +
-            stderr
-          ).slice(-12000)
+          error: code === 0
+            ? null
+            : (
+                syntaxMatch?.[0] ||
+                "Demo production process exited with an error."
+              ),
+          log: combinedLog.slice(-12000)
         };
 
         console.log(
