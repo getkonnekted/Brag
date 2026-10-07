@@ -94,12 +94,29 @@ export default function Home() {
       const produceResult=finished?.result;
       if(finished?.status!=="complete"||!produceResult?.ok)throw new Error(finished?.error||produceResult?.error||"Could not produce the demo.");
       const nextVideos:Record<"16x9"|"9x16",string>={"16x9":"","9x16":""};
-      for(const file of produceResult.final||[]){
+      const returnedFiles = Array.isArray(produceResult.final) ? produceResult.final : [];
+      for(const file of returnedFiles){
+        if(typeof file !== "string") continue;
         if(file.includes("product-demo-16x9.mp4"))nextVideos["16x9"]=`${ENGINE}/api/media?file=${encodeURIComponent(file)}${engineToken?`&token=${encodeURIComponent(engineToken)}`:""}`;
         if(file.includes("product-demo-9x16.mp4"))nextVideos["9x16"]=`${ENGINE}/api/media?file=${encodeURIComponent(file)}${engineToken?`&token=${encodeURIComponent(engineToken)}`:""}`;
       }
+      // The engine writes these two delivery artifacts to stable paths. If an
+      // older worker response omitted the final[] array, recover from those
+      // known paths instead of throwing away a successful production.
+      if(!nextVideos["16x9"]) nextVideos["16x9"]=`${ENGINE}/api/media?file=${encodeURIComponent("output/final/product-demo-16x9.mp4")}${engineToken?`&token=${encodeURIComponent(engineToken)}`:""}`;
+      if(!nextVideos["9x16"]) nextVideos["9x16"]=`${ENGINE}/api/media?file=${encodeURIComponent("output/final/product-demo-9x16.mp4")}${engineToken?`&token=${encodeURIComponent(engineToken)}`:""}`;
+
+      const playable = await Promise.all((Object.entries(nextVideos) as ["16x9"|"9x16",string][]).map(async ([format,mediaUrl]) => {
+        try {
+          const response = await fetch(mediaUrl,{method:"HEAD",cache:"no-store"});
+          return [format,response.ok] as const;
+        } catch { return [format,false] as const; }
+      }));
+      for(const [format,ok] of playable){ if(!ok) nextVideos[format]=""; }
       setVideoUrls(nextVideos);
-      if(!nextVideos["16x9"]&&!nextVideos["9x16"]){ const fallback=produceResult?.final||[]; throw new Error(`Production completed, but the engine returned no playable video paths. Returned: ${JSON.stringify(fallback)}`); }
+      if(!nextVideos["16x9"]&&!nextVideos["9x16"]){
+        throw new Error("Production completed, but the engine could not serve either rendered video. The render worker needs attention.");
+      }
 
       setStage("ready");
       setTimeout(() => document.getElementById("result")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
