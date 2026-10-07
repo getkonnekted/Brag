@@ -14,7 +14,7 @@ export default function Home() {
   const [engineUrl, setEngineUrl] = useState(DEFAULT_ENGINE);
   const [engineToken, setEngineToken] = useState("");
   const [product, setProduct] = useState("your product");
-  const [videoUrl, setVideoUrl] = useState("");
+  const [videoUrls, setVideoUrls] = useState<Record<"16x9" | "9x16", string>>({ "16x9": "", "9x16": "" });
 
   useEffect(() => {
     setEngineUrl(localStorage.getItem("demo_engine_url") || DEFAULT_ENGINE);
@@ -30,7 +30,7 @@ export default function Home() {
 
   async function makeDemo() {
     setError("");
-    setVideoUrl("");
+    setVideoUrls({ "16x9": "", "9x16": "" });
     setStage("inspecting");
 
     try {
@@ -60,9 +60,14 @@ export default function Home() {
         throw new Error(produceData.error || log || "Could not produce the demo.");
       }
 
-      const firstFile = produceData.final?.[0];
-      if (firstFile) {
-        setVideoUrl(`${ENGINE}/api/media?file=${encodeURIComponent(firstFile)}${engineToken ? `&token=${encodeURIComponent(engineToken)}` : ""}`);
+      const nextVideos: Record<"16x9" | "9x16", string> = { "16x9": "", "9x16": "" };
+      for (const file of produceData.final || []) {
+        if (file.includes("product-demo-16x9.mp4")) nextVideos["16x9"] = `${ENGINE}/api/media?file=${encodeURIComponent(file)}${engineToken ? `&token=${encodeURIComponent(engineToken)}` : ""}`;
+        if (file.includes("product-demo-9x16.mp4")) nextVideos["9x16"] = `${ENGINE}/api/media?file=${encodeURIComponent(file)}${engineToken ? `&token=${encodeURIComponent(engineToken)}` : ""}`;
+      }
+      setVideoUrls(nextVideos);
+      if (!nextVideos["16x9"] && !nextVideos["9x16"]) {
+        throw new Error("The engine finished without returning the 16:9 or 9:16 video.");
       }
 
       setStage("ready");
@@ -121,16 +126,16 @@ export default function Home() {
         </div>
       </section>
 
-      {stage === "ready" && videoUrl && (
+      {stage === "ready" && (videoUrls["16x9"] || videoUrls["9x16"]) && (
         <section className="showcase result-section" id="result">
           <div className="showcase-intro">
             <span className="section-tag">04 / YOUR DEMO</span>
             <h2>Real product.<br /><em>Ready to share.</em></h2>
-            <p>The rendered 16:9 demo is served directly from your demo engine.</p>
-            <a className="small-button" href={videoUrl} target="_blank" rel="noreferrer">Open full video ↗</a>
+            <p>Two outputs, one production: landscape for product pages and decks, portrait for social feeds and mobile.</p>
           </div>
-          <div className="video-card">
-            <video src={videoUrl} controls playsInline preload="metadata" />
+          <div className="video-options">
+            {videoUrls["16x9"] && <article className="video-option"><div className="video-option-head"><span>16:9</span><a className="small-button" href={videoUrls["16x9"]} target="_blank" rel="noreferrer">Open ↗</a></div><video src={videoUrls["16x9"]} controls playsInline preload="metadata" /></article>}
+            {videoUrls["9x16"] && <article className="video-option portrait"><div className="video-option-head"><span>9:16</span><a className="small-button" href={videoUrls["9x16"]} target="_blank" rel="noreferrer">Open ↗</a></div><video src={videoUrls["9x16"]} controls playsInline preload="metadata" /></article>}
           </div>
         </section>
       )}
