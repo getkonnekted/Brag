@@ -119,252 +119,71 @@ function buildDemoPackage(
 
   const scenes = [];
 
-  /*
-   * IMPORTANT:
-   *
-   * Every scene uses the real browser
-   * recording as its primary visual source.
-   *
-   * Screenshots are retained only as
-   * evidence/reference metadata.
-   */
-
+  // Keep the cut tight: roughly 20 seconds, with every shot using a
+  // different section of the real browser recording.
   scenes.push({
-    id:
-      "hook",
-
-    duration:
-      4,
-
-    footage:
-      realFootage,
-
-    footageType:
-      "real-browser-recording",
-
-    videoStart:
-      0,
-
-    videoEnd:
-      4,
-
-    narration:
-      buildNarration(
-        name,
-        description,
-        narrative.scenes?.[0]
-          ?.text ||
-          narrative.scenes?.[0]
-      ),
-
-    purpose:
-      "Establish the real product."
+    id: "hook",
+    duration: 3,
+    footage: realFootage,
+    footageType: "real-browser-recording",
+    videoStart: 0,
+    videoEnd: 3,
+    narration: buildNarration(name, description, narrative.scenes?.[0]?.text || narrative.scenes?.[0]),
+    purpose: "Establish the real product.",
+    motion: { type: "push-in", from: 1.00, to: 1.05 }
   });
 
-  states
-    .slice(0, 3)
-    .forEach(
-      (state, index) => {
-        const recordingMs =
-          Number(
-            state.recordingMs
-          ) || 0;
+  states.slice(0, 3).forEach((state, index) => {
+    const recordingMs = Number(state.recordingMs) || 0;
+    const stateTime = recordingMs / 1000;
+    const startTime = Math.max(0, stateTime - 1.8);
+    const endTime = Math.max(startTime + 2.8, stateTime + 0.8);
 
-        const start =
-          Math.max(
-            0,
-            recordingMs /
-              1000 -
-              2
-          );
-
-        const end =
-          Math.max(
-            start + 2,
-            recordingMs /
-              1000 +
-              1
-          );
-
-        const action =
-          clean(
-            state.action
-              ?.text
-          );
-
-        scenes.push({
-          id:
-            `workflow-${index + 1}`,
-
-          duration:
-            6,
-
-          footage:
-            realFootage,
-
-          footageType:
-            "real-browser-recording",
-
-          videoStart:
-            start,
-
-          videoEnd:
-            end,
-
-          narration:
-            action
-              ? `${name} responds as the user ${action.toLowerCase()}.`
-              : `This is the next useful step inside ${name}.`,
-
-          purpose:
-            "Show real product interaction.",
-
-          cursor:
-            state.cursor ||
-            null,
-
-          interaction: {
-            focus:
-              state.cursor ||
-              null,
-
-            effects: [
-              "focus-hold",
-              "click-ring"
-            ]
-          },
-
-          sourceState:
-            state.step,
-
-          sourceScreenshot:
-            state.screenshot
-        });
+    scenes.push({
+      id: `workflow-${index + 1}`,
+      duration: 4,
+      footage: realFootage,
+      footageType: "real-browser-recording",
+      videoStart: startTime,
+      videoEnd: endTime,
+      narration: clean(state.action?.text)
+        ? `${name} responds as the user ${state.action.text.toLowerCase()}.`
+        : "The workflow moves to the next useful step.",
+      purpose: "Show real product interaction.",
+      cursor: state.cursor || null,
+      interaction: {
+        focus: state.cursor || null,
+        effects: ["focus-hold", "click-ring"]
+      },
+      sourceState: state.step,
+      sourceScreenshot: state.screenshot,
+      motion: {
+        type: index % 2 === 0 ? "push-in" : "pull-out",
+        from: index % 2 === 0 ? 1.00 : 1.05,
+        to: index % 2 === 0 ? 1.05 : 1.00
       }
-    );
-
-  const last =
-    states[
-      states.length - 1
-    ];
-
-  const lastMs =
-    Number(
-      last.recordingMs
-    ) || 0;
-
-  scenes.push({
-    id:
-      "result",
-
-    duration:
-      5,
-
-    footage:
-      realFootage,
-
-    footageType:
-      "real-browser-recording",
-
-    videoStart:
-      Math.max(
-        0,
-        lastMs /
-          1000 -
-          3
-      ),
-
-    videoEnd:
-      Math.max(
-        3,
-        lastMs /
-          1000 +
-          1
-      ),
-
-    narration:
-      narrative.scenes?.[3]
-        ?.text ||
-      "The useful result is visible in the real product.",
-
-    purpose:
-      "Show the useful result.",
-
-    cursor:
-      last.cursor ||
-      null,
-
-    interaction: {
-      focus:
-        last.cursor ||
-        null,
-
-      effects: [
-        "focus-hold"
-      ]
-    },
-
-    sourceState:
-      last.step,
-
-    sourceScreenshot:
-      last.screenshot
+    });
   });
 
+  const last = states[states.length - 1];
+  const lastMs = Number(last.recordingMs) || 0;
+  const resultStart = Math.max(0, lastMs / 1000 - 2.4);
+  const resultEnd = Math.max(resultStart + 3.0, lastMs / 1000 + 0.6);
+
   scenes.push({
-    id:
-      "close",
-
-    duration:
-      4,
-
-    footage:
-      realFootage,
-
-    footageType:
-      "real-browser-recording",
-
-    videoStart:
-      Math.max(
-        0,
-        lastMs /
-          1000 -
-          3
-      ),
-
-    videoEnd:
-      Math.max(
-        3,
-        lastMs /
-          1000 +
-          1
-      ),
-
-    narration:
-      `That's ${name}. Real product, real workflow, real result.`,
-
-    purpose:
-      "Close on the strongest real product evidence.",
-
-    cursor:
-      last.cursor ||
-      null,
-
-    interaction: {
-      focus:
-        last.cursor ||
-        null,
-
-      effects: [
-        "focus-hold"
-      ]
-    },
-
-    sourceState:
-      last.step,
-
-    sourceScreenshot:
-      last.screenshot
+    id: "result",
+    duration: 4,
+    footage: realFootage,
+    footageType: "real-browser-recording",
+    videoStart: resultStart,
+    videoEnd: resultEnd,
+    narration: narrative.scenes?.[3]?.text || "The useful result is visible in the real product.",
+    purpose: "Show the useful result.",
+    cursor: last.cursor || null,
+    interaction: { focus: last.cursor || null, effects: ["focus-hold"] },
+    sourceState: last.step,
+    sourceScreenshot: last.screenshot,
+    motion: { type: "push-in", from: 1.00, to: 1.08 }
   });
 
   let finalScenes =
@@ -463,8 +282,7 @@ function buildDemoPackage(
 
     formats: [
       "16:9",
-      "9:16",
-      "1:1"
+      "9:16"
     ],
 
     visualLanguage: {
