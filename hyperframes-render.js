@@ -1,6 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-const { spawnSync, execFileSync } = require("child_process");
+const { spawnSync } = require("child_process");
 
 const outputDir = path.resolve(process.argv[2] || "output/brag-output");
 const compositionDir = path.resolve(process.argv[3] || path.join(outputDir, "composition"));
@@ -23,16 +23,20 @@ function hyperframes(args) {
   );
 }
 
-function commandAvailable(command) {
-  try {
-    execFileSync(command, ["--version"], { stdio: "ignore" });
-    return true;
-  } catch {
-    return false;
+function safeFallback() {
+  const source = path.join(compositionDir, "assets", "real-product-footage.mp4");
+  if (!fs.existsSync(source) || fs.statSync(source).size === 0) {
+    throw new Error("Hyperframes fallback source footage is missing.");
   }
-}
 
-function readCompositionCopy() {
+  console.log("\nHyperframes check passed. Producing the master with deterministic FFmpeg.");
+  console.log("Creative renderer: real footage + continuous camera movement + audio. No subtitles or text overlays.");
+
+  fs.rmSync(outputFile, { force: true });
+
+  const audioFile = path.join(compositionDir, "render-audio.wav");
+  let hasNarration = false;
+
   const index = fs.readFileSync(path.join(compositionDir, "index.html"), "utf8");
   const get = id => {
     const re = new RegExp('id="' + id + '"[^>]*>([\\s\\S]*?)</');
@@ -41,42 +45,14 @@ function readCompositionCopy() {
       ? match[1].replace(/<[^>]+>/g, " ").replace(/&quot;/g, '"').replace(/&amp;/g, "&").replace(/\\s+/g, " ").trim()
       : "";
   };
-  return {
-    title: get("title"),
-    promise: get("promise"),
-    label: get("workflow-kicker")
-  };
-}
 
-function writeText(name, value) {
-  const file = path.join(compositionDir, name);
-  fs.writeFileSync(file, String(value || "").trim(), "utf8");
-  return file;
-}
+  const title = get("title");
+  const promise = get("promise");
+  const narration = [title, promise].filter(Boolean).join(". ");
 
-function safeFallback() {
-  const source = path.join(compositionDir, "assets", "real-product-footage.mp4");
-  if (!fs.existsSync(source) || fs.statSync(source).size === 0) {
-    throw new Error("Hyperframes fallback source footage is missing.");
-  }
-
-  const copy = readCompositionCopy();
-  const titleFile = writeText("render-title.txt", copy.title || "Your product");
-  const promiseFile = writeText("render-promise.txt", copy.promise || "A real product solving a real problem.");
-  const labelFile = writeText("render-label.txt", copy.label || "REAL PRODUCT / REAL INTERACTION / REAL PROOF");
-
-  console.log("\nHyperframes check passed. Producing the master with deterministic FFmpeg.");
-  console.log("Creative renderer: real footage + camera motion + title cards + audio.");
-
-  fs.rmSync(outputFile, { force: true });
-
-  const audioFile = path.join(compositionDir, "render-audio.wav");
-  let hasNarration = false;
-
-  if (commandAvailable("espeak-ng")) {
-    const narration = [copy.title, copy.promise].filter(Boolean).join(". ");
+  if (narration && commandAvailable("espeak-ng")) {
     try {
-      execFileSync("espeak-ng", [
+      require("child_process").execFileSync("espeak-ng", [
         "-v", process.env.ESPEAK_VOICE || "en-us",
         "-s", process.env.ESPEAK_SPEED || "150",
         "-p", process.env.ESPEAK_PITCH || "48",
@@ -86,35 +62,52 @@ function safeFallback() {
       ], { stdio: "inherit" });
       hasNarration = fs.existsSync(audioFile) && fs.statSync(audioFile).size > 0;
     } catch {
-      console.warn("Narration generation unavailable; using a lightweight score.");
+      console.warn("Narration generation unavailable; using a lightweight audio bed.");
     }
   }
 
+  /*
+   * The old renderer used zoompan with a tiny 3.5% ceiling and then
+   * burned the composition copy into the image. In practice that was
+   * visually imperceptible and the copy became subtitles.
+   *
+   * This renderer deliberately keeps the browser footage clean and
+   * applies a visible, continuous camera move to the actual footage.
+   * crop x/y are evaluated per frame by FFmpeg, so the movement is
+   * temporal rather than a static transform.
+   */
   const videoFilter = [
-    "scale=1920:1080:force_original_aspect_ratio=increase:flags=fast_bilinear",
-    "crop=1920:1080",
-    "zoompan=z='min(zoom+0.0007,1.035)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=1920x1080:fps=24",
-    "drawbox=x=0:y=0:w=1920:h=1080:color=black@0.18:t=fill",
-    "drawtext=textfile='render-title.txt':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=74:fontcolor=white:x=120:y=820:alpha='if(lt(t,0.8),t/0.8,if(gt(t,5),max(0,(5.8-t)/0.8),1))'",
-    "drawtext=textfile='render-promise.txt':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:fontsize=34:fontcolor=white@0.82:x=124:y=915:line_spacing=10:alpha='if(lt(t,1.0),t,if(gt(t,6),max(0,(6.8-t)/0.8),1))'",
-    "drawtext=textfile='render-label.txt':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:fontsize=18:fontcolor=white@0.75:x=124:y=72:alpha='if(lt(t,0.5),t/0.5,if(gt(t,4),max(0,(4.6-t)/0.6),1))'",
-    "vignette=PI/5",
+    "scale=2304:1296:force_original_aspect_ratio=increase:flags=lanczos",
+    "crop=w=1920:h=1080:x='192+72*sin(t*0.34)':y='108+38*cos(t*0.27)'",
+    "eq=contrast=1.03:saturation=1.04:brightness=-0.015",
+    "vignette=PI/6",
     "format=yuv420p"
   ].join(",");
 
   const args = ["-y", "-hide_banner", "-loglevel", "warning", "-i", source];
-  if (hasNarration) args.push("-i", audioFile);
+
+  if (hasNarration) {
+    args.push("-i", audioFile);
+  }
 
   args.push(
     "-filter_complex",
     hasNarration
-      ? "[0:v]" + videoFilter + "[v];[1:a]aformat=sample_rates=48000:channel_layouts=stereo,volume=0.72,apad,atrim=duration=20[a]"
-      : "[0:v]" + videoFilter + "[v];aevalsrc=0.015*sin(2*PI*220*t)+0.008*sin(2*PI*330*t):s=48000:d=20,afade=t=in:st=0:d=1,afade=t=out:st=18:d=2,volume=0.22[a]",
-    "-map", "[v]", "-map", "[a]",
-    "-t", "20", "-threads", "1",
-    "-c:v", "libx264", "-preset", "veryfast", "-crf", "21",
-    "-c:a", "aac", "-b:a", "96k", "-ar", "48000",
-    "-pix_fmt", "yuv420p", "-movflags", "+faststart",
+      ? "[0:v]" + videoFilter + "[v];[1:a]aformat=sample_rates=48000:channel_layouts=stereo,volume=0.78,apad,atrim=duration=20,afade=t=in:st=0:d=0.4,afade=t=out:st=18.5:d=1.5[a]"
+      : "[0:v]" + videoFilter + "[v];aevalsrc=0.012*sin(2*PI*220*t)+0.006*sin(2*PI*330*t):s=48000:d=20,afade=t=in:st=0:d=1,afade=t=out:st=18:d=2,volume=0.18[a]",
+    "-map", "[v]",
+    "-map", "[a]",
+    "-t", "20",
+    "-threads", "1",
+    "-c:v", "libx264",
+    "-preset", "veryfast",
+    "-crf", "21",
+    "-c:a", "aac",
+    "-b:a", "96k",
+    "-ar", "48000",
+    "-ac", "2",
+    "-pix_fmt", "yuv420p",
+    "-movflags", "+faststart",
     outputFile
   );
 
@@ -129,6 +122,15 @@ function safeFallback() {
   }
 
   console.log("Deterministic cinematic render complete.");
+}
+
+function commandAvailable(command) {
+  try {
+    require("child_process").execFileSync(command, ["--version"], { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 if (!fs.existsSync(compositionDir)) {
@@ -166,5 +168,4 @@ if (check.status !== 0) {
   process.exit(check.status || 1);
 }
 
-console.log("\nHyperframes check passed. Using deterministic cinematic FFmpeg rendering.");
 safeFallback();
