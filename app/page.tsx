@@ -71,6 +71,7 @@ export default function Home() {
 
       setProduct(inspectData.inspection?.title || hostname.split(".")[0]);
       setStage("producing");
+      setProduction({status:"starting",stage:"preflight",progress:2,message:"Starting the director…",elapsedMs:0});
 
       const produceResponse = await fetch(ENGINE + "/api/produce", {
         method:"POST",
@@ -127,19 +128,31 @@ export default function Home() {
         <p className="hero-copy">demo. turns a real product into a short, cinematic demo people can understand — without you recording a thing.</p>
 
         <div className="create-card" id="create">
-          <div className="create-top"><div><span className="step">01</span><strong>Paste your product</strong></div><span className="hint">No account required</span></div>
+          <div className="create-top"><div><span className="step">{busy ? "02" : "01"}</span><strong>{busy ? "Making your demo" : "Paste your product"}</strong></div><span className="hint">{busy ? "Live production" : "No account required"}</span></div>
           <div className="url-row">
             <div className="url-input"><span>https://</span><input value={url.replace(/^https?:\/\//i, "")} onChange={e => setUrl(normalizeUrl(e.target.value))} placeholder="yourproduct.com" /></div>
             <button className="make-button" disabled={!url || busy} onClick={makeDemo}>
-              {stage === "inspecting" ? "Understanding..." : stage === "producing" ? "Directing & rendering..." : "Make my demo"}<span>→</span>
+              {stage === "inspecting" ? "Understanding..." : stage === "producing" ? "Making your demo..." : "Make my demo"}<span>{busy ? "●" : "→"}</span>
             </button>
           </div>
           <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional: tell the director what matters most…" rows={2} />
           {stage === "producing" && production && (
             <div className="production-progress" aria-live="polite">
-              <div className="production-head"><div><strong>{production.message}</strong><span>{Math.round(production.progress)}%</span></div><div className="production-stage">{production.stage.toUpperCase()} · {Math.floor((production.elapsedMs || 0) / 1000)}s elapsed</div></div>
-              <div className="production-track"><div className="production-fill" style={{width:`${Math.max(2,Math.min(100,production.progress))}%`}} /></div>
-              <div className="production-steps"><span className={production.progress>=12?"done":""}>Understand</span><span className={production.progress>=28?"done":""}>Direct</span><span className={production.progress>=42?"done":""}>Capture</span><span className={production.progress>=68?"done":""}>Compose</span><span className={production.progress>=74?"active":""}>Render</span><span className={production.progress>=100?"done":""}>Deliver</span></div>
+              <div className="production-status-top">
+                <div className="production-live"><span className="production-pulse" /> LIVE PRODUCTION</div>
+                <span className="production-percent">{Math.round(production.progress)}%</span>
+              </div>
+              <div className="production-message">{production.message}</div>
+              <div className="production-stage">{production.stage.toUpperCase()} · {Math.floor((production.elapsedMs || 0) / 1000)}s elapsed</div>
+              <div className="production-track"><div className="production-fill" style={{width:Math.max(2,Math.min(100,production.progress))+"%"}} /></div>
+              <div className="production-steps">
+                <span className={production.progress>=12?"done":""}><b>01</b> Understand</span>
+                <span className={production.progress>=28?"done":""}><b>02</b> Direct</span>
+                <span className={production.progress>=42?"done":""}><b>03</b> Capture</span>
+                <span className={production.progress>=68?"done":""}><b>04</b> Compose</span>
+                <span className={production.progress>=74?"active":""}><b>05</b> Render</span>
+                <span className={production.progress>=100?"done":""}><b>06</b> Deliver</span>
+              </div>
             </div>
           )}
           {error && <div className="error">{error}</div>
