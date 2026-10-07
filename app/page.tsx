@@ -99,7 +99,7 @@ export default function Home() {
         if(file.includes("product-demo-9x16.mp4"))nextVideos["9x16"]=`${ENGINE}/api/media?file=${encodeURIComponent(file)}${engineToken?`&token=${encodeURIComponent(engineToken)}`:""}`;
       }
       setVideoUrls(nextVideos);
-      if(!nextVideos["16x9"]&&!nextVideos["9x16"])throw new Error("The engine finished without returning the 16:9 or 9:16 video.");
+      if(!nextVideos["16x9"]&&!nextVideos["9x16"]){ const fallback=produceResult?.final||[]; throw new Error(`Production completed, but the engine returned no playable video paths. Returned: ${JSON.stringify(fallback)}`); }
 
       setStage("ready");
       setTimeout(() => document.getElementById("result")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
