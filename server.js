@@ -480,7 +480,7 @@ async function handleRecord(
    PRODUCE ENDPOINT
 ========================================================= */
 
-async async function handleProduce(req,res){
+async function handleProduce(req,res){
   if(!requireAuth(req,res))return;
   try{
     const data=await readBody(req);
