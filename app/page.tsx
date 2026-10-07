@@ -15,7 +15,8 @@ export default function Home() {
   const [engineUrl, setEngineUrl] = useState(DEFAULT_ENGINE);
   const [engineToken, setEngineToken] = useState("");
   const [product, setProduct] = useState("your product");
-  const [videoUrls, setVideoUrls] = useState<Record<"16x9" | "9x16", string>>({ "16x9": "", "9x16": "" });
+  const [videoUrls, setVideoUrls] = useState<Record<"16x9" | "1x1" | "9x16", string>>({ "16x9": "", "1x1": "", "9x16": "" });
+  const [formats, setFormats] = useState<Array<"16x9" | "1x1" | "9x16">>(["16x9", "1x1", "9x16"]);
   const [production, setProduction] = useState<ProductionStatus | null>(null);
 
   useEffect(() => {
@@ -43,7 +44,7 @@ export default function Home() {
 
   async function makeDemo() {
     setError("");
-    setVideoUrls({ "16x9": "", "9x16": "" });
+    setVideoUrls({ "16x9": "", "1x1": "", "9x16": "" });
     const normalizedUrl = normalizeUrl(url);
     if (!normalizedUrl) {
       setError("Enter a product URL.");
@@ -78,7 +79,7 @@ export default function Home() {
       const produceResponse = await fetch(ENGINE + "/api/produce", {
         method:"POST",
         headers:{"Content-Type":"application/json",...(engineToken?{Authorization:`Bearer ${engineToken}`}:{})},
-        body:JSON.stringify({url:normalizedUrl,maxSteps:4,description})
+        body:JSON.stringify({url:normalizedUrl,maxSteps:4,description,formats})
       });
       const produceData=await produceResponse.json().catch(()=>({}));
       if(!produceResponse.ok||!produceData.jobId)throw new Error(produceData.error||"Could not start demo production.");
@@ -95,7 +96,7 @@ export default function Home() {
       }
       const produceResult=finished?.result;
       if(finished?.status!=="complete"||!produceResult?.ok)throw new Error(finished?.error||produceResult?.error||"Could not produce the demo.");
-      const nextVideos:Record<"16x9"|"9x16",string>={"16x9":"","9x16":""};
+      const nextVideos:Record<"16x9"|"1x1"|"9x16",string>={"16x9":"","1x1":"","9x16":""};
       const returnedFiles = Array.isArray(produceResult.final) ? produceResult.final : [];
       for(const file of returnedFiles){
         if(typeof file !== "string") continue;
@@ -150,6 +151,13 @@ export default function Home() {
             </button>
           </div>
           <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional: tell the director what matters most…" rows={2} />
+          <div className="format-selector">
+            <span className="format-label">OUTPUT</span>
+            {([["16x9","16:9"],["1x1","1:1"],["9x16","9:16"]] as const).map(([value,label]) => (
+              <button key={value} type="button" className={formats.includes(value) ? "format-chip selected" : "format-chip"} onClick={() => setFormats(current => current.includes(value) ? (current.length > 1 ? current.filter(item => item !== value) : current) : [...current, value])}>{label}<span>{formats.includes(value) ? "✓" : ""}</span></button>
+            ))}
+          </div>
+
           {(stage === "producing" || stage === "error") && production && (
             <div className={`production-progress ${production.status === "error" ? "production-progress-error" : ""}`} aria-live="polite">
               <div className="production-status-top">
@@ -195,10 +203,11 @@ export default function Home() {
           <div className="showcase-intro">
             <span className="section-tag">04 / YOUR DEMO</span>
             <h2>Real product.<br /><em>Ready to share.</em></h2>
-            <p>Two outputs, one production: landscape for product pages and decks, portrait for social feeds and mobile.</p>
+            <p>Choose the outputs you need before production: landscape, square, portrait — or all three.</p>
           </div>
           <div className="video-options">
             {videoUrls["16x9"] && <article className="video-option"><div className="video-option-head"><span>16:9</span><a className="small-button" href={videoUrls["16x9"]} target="_blank" rel="noreferrer">Open ↗</a></div><video src={videoUrls["16x9"]} controls playsInline preload="metadata" /></article>}
+            {videoUrls["1x1"] && <article className="video-option square"><div className="video-option-head"><span>1:1</span><a className="small-button" href={videoUrls["1x1"]} target="_blank" rel="noreferrer">Open ↗</a></div><video src={videoUrls["1x1"]} controls playsInline preload="metadata" /></article>}
             {videoUrls["9x16"] && <article className="video-option portrait"><div className="video-option-head"><span>9:16</span><a className="small-button" href={videoUrls["9x16"]} target="_blank" rel="noreferrer">Open ↗</a></div><video src={videoUrls["9x16"]} controls playsInline preload="metadata" /></article>}
           </div>
         </section>
