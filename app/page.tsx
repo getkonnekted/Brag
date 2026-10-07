@@ -19,7 +19,7 @@ export default function Home() {
   useEffect(() => {
     const saved = localStorage.getItem("demo_engine_url") || "";
     const isDeployed = typeof window !== "undefined" && window.location.protocol === "https:";
-    const isStaleLocal = /^(https?:\\/\\/)?(localhost|127\\.0\\.0\\.1)(:\\d+)?/i.test(saved);
+    const isStaleLocal = /^(https?:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?/i.test(saved);
 
     // Never let an old localhost setting break the deployed demo.
     setEngineUrl(isDeployed && isStaleLocal ? DEFAULT_ENGINE : (saved || DEFAULT_ENGINE));
@@ -75,7 +75,7 @@ export default function Home() {
       const produceResponse = await fetch(ENGINE + "/api/produce", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(engineToken ? { Authorization: `Bearer ${engineToken}` } : {}) },
-        body: JSON.stringify({ url, maxSteps: 4, description })
+        body: JSON.stringify({ url: normalizedUrl, maxSteps: 4, description })
       });
       const produceData = await produceResponse.json().catch(() => ({}));
 
