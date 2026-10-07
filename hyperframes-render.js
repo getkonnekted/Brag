@@ -98,11 +98,5 @@ if (check.status !== 0) {
   process.exit(check.status || 1);
 }
 
-const render = hyperframes(["render", "--output", outputFile]);
-if (render.status === 0 && fs.existsSync(outputFile) && fs.statSync(outputFile).size > 0) {
-  console.log("\nHyperframes render complete.");
-  console.log(outputFile);
-  process.exit(0);
-}
-
+console.log("\nHyperframes check passed. Using the deterministic FFmpeg renderer for production delivery.");
 safeFallback();
