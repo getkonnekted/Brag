@@ -21,8 +21,7 @@ function run(label, script, args = [], stage = "running", percent = 0, message =
 
   if (result.status !== 0) {
     throw new Error(
-      label + " failed with exit code " + result.status +
-      ((stdout || stderr) ? "\n" + [stdout, stderr].filter(Boolean).join("\n") : "")
+      label + " failed with exit code " + result.status
     );
   }
 }
