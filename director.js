@@ -39,6 +39,7 @@ function actionScore(action, intelligence = {}) {
   if (intelligence.archetype === "data-workflow" && /dashboard|analytics|report|metric|insight|view|filter/i.test(text)) score += 24;
   if (intelligence.archetype === "commerce" && /product|shop|cart|order|buy|price|plan/i.test(text)) score += 24;
   if (intelligence.archetype === "creation-workflow" && /create|new|draw|design|edit|compose|generate/i.test(text)) score += 24;
+  if (intelligence.userIntent && /issue|project|workflow|task|ticket|priorit|assign|track|planning|organize/i.test(intelligence.userIntent) && /issue|project|task|ticket|priority|assign|workflow|project|plan/i.test(text)) score += 80;
   if (intelligence.archetype === "collaboration" && /workspace|team|share|comment|invite/i.test(text)) score += 24;
 
   return score;
@@ -48,7 +49,8 @@ function buildIntelligence(inspection = {}) {
   const headings = (inspection.headings || inspection.evidence?.headings || []).map(clean).filter(Boolean);
   const buttons = (inspection.buttons || inspection.evidence?.uiLabels || []).map(item => clean(typeof item === "string" ? item : item.text)).filter(Boolean);
   const links = (inspection.links || []).map(item => clean(typeof item === "string" ? item : item.text)).filter(Boolean);
-  const corpus = [inspection.title, inspection.description, inspection.product?.name, inspection.product?.description, ...headings, ...buttons, ...links].filter(Boolean).join(" ");
+  const userIntent = clean(inspection.userIntent || inspection.request?.description || "");
+  const corpus = [userIntent, inspection.title, inspection.description, inspection.product?.name, inspection.product?.description, ...headings, ...buttons, ...links].filter(Boolean).join(" ");
   const s = inspection.signals || {};
   const signals = {
     ai: Boolean(s.ai) || /\b(ai|agent|assistant|automation|generate|prompt|model|copilot|llm)\b/i.test(corpus),
@@ -58,7 +60,9 @@ function buildIntelligence(inspection = {}) {
     collaboration: Boolean(s.collaboration) || /\b(team|collaborat|workspace|invite|share|comment)\b/i.test(corpus)
   };
   let archetype = "product";
-  if (signals.creation) archetype = "creation-workflow";
+  const workflowIntent = /\b(issue|issues|project|projects|workflow|workflows|task|tasks|ticket|tickets|priorit|assign|track|planning|execution|organize|organized)\b/i.test(userIntent);
+  if (workflowIntent) archetype = "product";
+  else if (signals.creation) archetype = "creation-workflow";
   else if (signals.ai) archetype = "ai-workflow";
   else if (signals.data) archetype = "data-workflow";
   else if (signals.commerce) archetype = "commerce";
@@ -110,7 +114,8 @@ function buildIntelligence(inspection = {}) {
     .slice(0, 240);
 
   return {
-    version: "2.1",
+    version: "2.2",
+    userIntent,
     product,
     promise,
     archetype,
@@ -276,6 +281,11 @@ if (require.main === module) {
   const file = process.argv[2] || "output/inspection.json";
   if (!fs.existsSync(file)) throw new Error("Inspection file not found: " + file);
   const inspection = JSON.parse(fs.readFileSync(file, "utf8"));
+  const requestPath = "output/request.json";
+  if (fs.existsSync(requestPath)) {
+    const request = JSON.parse(fs.readFileSync(requestPath, "utf8"));
+    inspection.userIntent = request.description || null;
+  }
   const manifest = buildDirectorManifest(inspection);
   fs.mkdirSync("output", { recursive: true });
   fs.writeFileSync("output/director-manifest.json", JSON.stringify(manifest, null, 2));
