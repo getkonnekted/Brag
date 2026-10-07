@@ -4,6 +4,8 @@ const {
 execFileSync
 } = require("child_process");
 
+const RENDERER_VERSION = "3.2";
+
 const packagePath =
 process.argv[2] ||
 "output/demo/package.json";
@@ -944,6 +946,4 @@ finalPath
 );
 }
 
-console.log(
-"\nBRAG render complete."
-);
+console.log(`\nBRAG render complete. Renderer ${RENDERER_VERSION}`);
