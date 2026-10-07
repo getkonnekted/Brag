@@ -29,7 +29,7 @@ function safeFallback() {
     throw new Error("Hyperframes fallback source footage is missing.");
   }
 
-  console.log("\nHyperframes check passed. Producing the master with deterministic FFmpeg.");
+  console.log("\nProducing the master with the deterministic real-footage renderer.");
   console.log("Creative renderer: real footage + continuous camera movement + audio. No subtitles or text overlays.");
 
   fs.rmSync(outputFile, { force: true });
@@ -84,7 +84,7 @@ function safeFallback() {
     "format=yuv420p"
   ].join(",");
 
-  const args = ["-y", "-hide_banner", "-loglevel", "warning", "-i", source];
+  // Loop the real browser capture so short recordings still produce the\n  // required 20-second master instead of silently ending early.\n  const args = ["-y", "-hide_banner", "-loglevel", "warning", "-stream_loop", "-1", "-i", source];
 
   if (hasNarration) {
     args.push("-i", audioFile);
