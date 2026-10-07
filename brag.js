@@ -12,16 +12,12 @@ function progress(stage, percent, message) {
 function run(label, script, args = [], stage = "running", percent = 0, message = label) {
   progress(stage, percent, message);
   console.log("\n=== " + label + " ===");
+  // Stream child output live so the remote engine does not appear frozen
+  // during Hyperframes' frame-by-frame render.
   const result = spawnSync(process.execPath, [script, ...args], {
-    stdio: ["inherit", "pipe", "pipe"],
-    env: process.env,
-    encoding: "utf8"
+    stdio: "inherit",
+    env: process.env
   });
-
-  const stdout = (result.stdout || "").trim();
-  const stderr = (result.stderr || "").trim();
-  if (stdout) process.stdout.write(stdout + "\n");
-  if (stderr) process.stderr.write(stderr + "\n");
 
   if (result.status !== 0) {
     throw new Error(
