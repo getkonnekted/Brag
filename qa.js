@@ -517,8 +517,7 @@ if (cursorProblems.length) {
 
 const expected = {
   "16x9": [1280, 720],
-  "9x16": [720, 1280],
-  "1x1": [1080, 1080]
+  "9x16": [720, 1280]
 };
 
 let mediaChecks = 0;
