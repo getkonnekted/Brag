@@ -21,7 +21,6 @@ function run(args) {
         ...process.env,
         HYPERFRAMES_BROWSER_PATH: browserPath,
         PRODUCER_HEADLESS_SHELL_PATH: browserPath,
-        PRODUCER_FORCE_SCREENSHOT: process.env.PRODUCER_FORCE_SCREENSHOT || "true"
       },
       stdio: "inherit"
     }
@@ -63,8 +62,8 @@ if (!fs.existsSync(browserPath)) {
 }
 
 console.log("Chromium:", browserPath);
-run(["check", "--no-browser-gpu"]);
-run(["render", "--output", outputFile, "--no-browser-gpu"]);
+run(["check"]);
+run(["render", "--output", outputFile]);
 
 console.log("\nHyperframes render complete.");
 console.log(outputFile);
