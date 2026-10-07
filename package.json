@@ -21,7 +21,7 @@
     "engine": "node server.js",
     "personal": "node personal.js",
     "personal:remote": "node remote.js",
-    "postinstall": "if [ \"$VERCEL\" = \"1\" ]; then echo 'Skipping Playwright and Hyperframes browser installs on Vercel'; fi",
+    "postinstall": "if [ \"$VERCEL\" = \"1\" ]; then echo 'Skipping Playwright and Hyperframes browser installs on Vercel'; else npx hyperframes browser ensure; fi",
     "project-inspect": "node project-inspector.js",
     "director-manifest": "node director.js output/project.json",
     "hyperframes:render": "node hyperframes-render.js",
