@@ -76,7 +76,8 @@ html,body{margin:0;width:1920px;height:1080px;overflow:hidden;background:#080808
 .stage{position:relative;width:1920px;height:1080px}
 .frame{position:absolute;left:115px;top:65px;width:1690px;height:950px;background:#111;border:1px solid #333;border-radius:22px;overflow:hidden;box-shadow:0 30px 100px #000}
 video{width:100%;height:100%;object-fit:cover}
-.scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.58),transparent 40%,rgba(0,0,0,.76))}
+.scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.52),transparent 36%,rgba(0,0,0,.68));pointer-events:none}
+.vignette{position:absolute;inset:0;box-shadow:inset 0 0 140px rgba(0,0,0,.72);pointer-events:none}
 .brand{position:absolute;left:135px;top:78px;font:600 14px ui-monospace,monospace;letter-spacing:.16em}
 .kicker{position:absolute;left:135px;bottom:175px;font:500 12px ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;opacity:.72}
 .title{position:absolute;left:135px;bottom:78px;max-width:1420px;font-size:clamp(42px,6vw,88px);line-height:.95;letter-spacing:-.045em;font-weight:650}
@@ -89,6 +90,7 @@ video{width:100%;height:100%;object-fit:cover}
     <div class="frame">
       <video class="clip" src="assets/${assetName}" data-start="0" data-duration="${duration}" data-track-index="0" autoplay muted playsinline></video>
       <div class="scrim"></div>
+      <div class="vignette"></div>
     </div>
     <div class="brand">DEMO. / REAL PRODUCT</div>
     <div class="pill">${esc(director.archetype || "product workflow")}</div>
@@ -99,8 +101,12 @@ video{width:100%;height:100%;object-fit:cover}
 <script>
 window.__timelines = window.__timelines || {};
 const tl = gsap.timeline({ paused: true });
-tl.from(".brand,.pill", { opacity: 0, duration: 0.35, stagger: 0.08 }, 0.1);
-tl.from(".kicker,.title", { opacity: 0, y: 24, duration: 0.55, stagger: 0.08, ease: "power3.out" }, 0.35);
+const revealEnd = Math.min(Math.max(${duration.toFixed(3)}, 3.2), 5.5);
+tl.from(".frame", { opacity: 0, scale: 1.035, duration: 0.55, ease: "power2.out" }, 0);
+tl.from(".brand,.pill", { opacity: 0, y: -8, duration: 0.35, stagger: 0.08 }, 0.15);
+tl.from(".kicker,.title", { opacity: 0, y: 28, duration: 0.65, stagger: 0.08, ease: "power3.out" }, 0.35);
+tl.to(".title,.kicker,.pill,.scrim", { opacity: 0, duration: 0.55, ease: "power2.inOut" }, Math.max(2.1, revealEnd - 2.2));
+tl.to(".frame", { scale: 1.012, duration: Math.max(0.8, revealEnd - 2.1), ease: "none" }, 0);
 window.__timelines["main"] = tl;
 </script>
 </body>
