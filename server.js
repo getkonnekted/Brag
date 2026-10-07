@@ -982,6 +982,27 @@ const server =
       }
 
       /*
+       * PRODUCTION STATUS
+       */
+
+      if (
+        (
+          req.method ===
+            "GET" ||
+          req.method ===
+            "HEAD"
+        ) &&
+        req.url.startsWith(
+          "/api/produce/status"
+        )
+      ) {
+        return handleProductionStatus(
+          req,
+          res
+        );
+      }
+
+      /*
        * PRODUCE
        */
 
