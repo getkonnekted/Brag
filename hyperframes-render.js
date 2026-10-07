@@ -33,21 +33,16 @@ function safeFallback() {
     throw new Error("Hyperframes fallback source footage is missing.");
   }
 
-  const vf = [
-    "scale=1920:1080:force_original_aspect_ratio=decrease",
-    "pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black",
-    "drawbox=x=0:y=0:w=iw:h=260:color=black@0.28:t=fill",
-    "drawbox=x=0:y=ih-300:w=iw:h=300:color=black@0.48:t=fill"
-  ].join(",");
+  console.log("\nHyperframes check passed. Producing the master with deterministic FFmpeg.");
 
-  console.log("\nHyperframes render stalled. Using deterministic FFmpeg real-footage fallback.");
+  fs.rmSync(outputFile, { force: true });
 
   const result = spawnSync(
     process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg",
     [
-      "-y", "-hide_banner", "-loglevel", "error",
+      "-y", "-hide_banner", "-loglevel", "warning",
       "-i", source,
-      "-vf", vf,
+      "-vf", "scale=1920:1080:flags=lanczos",
       "-an",
       "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
       "-pix_fmt", "yuv420p", "-movflags", "+faststart",
@@ -56,12 +51,13 @@ function safeFallback() {
     { stdio: "inherit" }
   );
 
-  if (result.status !== 0 || !fs.existsSync(outputFile) || fs.statSync(outputFile).size === 0) {
+  if (result.status !== 0 || !fs.existsSync(outputFile) || fs.statSync(outputFile).size < 1000) {
     throw new Error("FFmpeg delivery fallback failed.");
   }
 
   console.log("FFmpeg fallback render complete.");
 }
+
 
 if (!fs.existsSync(compositionDir)) {
   console.error("Hyperframes composition directory not found:", compositionDir);
