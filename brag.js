@@ -5,12 +5,13 @@ const { execFileSync, spawnSync } = require("child_process");
 const url = process.argv.find(arg => /^https?:\/\//i.test(arg)) || null;
 const checkOnly = process.argv.includes("--check");
 
-function progress(stage, percent, message) { console.log(`DEMO_PROGRESS ${JSON.stringify({ stage, percent, message, at:new Date().toISOString() })}`); }
+function progress(stage, percent, message) {
+  console.log(`DEMO_PROGRESS ${JSON.stringify({ stage, percent, message, at: new Date().toISOString() })}`);
+}
 
 function run(label, script, args = [], stage = "running", percent = 0, message = label) {
   progress(stage, percent, message);
-  console.log("
-=== " + label + " ===");
+  console.log("\n=== " + label + " ===");
   const result = spawnSync(process.execPath, [script, ...args], {
     stdio: ["inherit", "pipe", "pipe"],
     env: process.env,
@@ -19,17 +20,13 @@ function run(label, script, args = [], stage = "running", percent = 0, message =
 
   const stdout = (result.stdout || "").trim();
   const stderr = (result.stderr || "").trim();
-  if (stdout) process.stdout.write(stdout + "
-");
-  if (stderr) process.stderr.write(stderr + "
-");
+  if (stdout) process.stdout.write(stdout + "\n");
+  if (stderr) process.stderr.write(stderr + "\n");
 
   if (result.status !== 0) {
     throw new Error(
       label + " failed with exit code " + result.status +
-      ((stdout || stderr) ? "
-" + [stdout, stderr].filter(Boolean).join("
-") : "")
+      ((stdout || stderr) ? "\n" + [stdout, stderr].filter(Boolean).join("\n") : "")
     );
   }
 }
@@ -89,7 +86,9 @@ function main() {
     "output/hyperframes-composition",
     "output/hyperframes-composition/composition",
     "output/final/brag.mp4"
-  ]);
+  ], "render", 74, "Rendering the final video…");
+
+  progress("verify", 98, "Verifying the finished demo…");
 
   const output = "output/final/brag.mp4";
 
@@ -109,9 +108,8 @@ function main() {
     }, null, 2)
   );
 
-  progress("complete",100,"Demo ready.");
-  console.log("
-BRAG production complete: " + output);
+  progress("complete", 100, "Demo ready.");
+  console.log("\nBRAG production complete: " + output);
 }
 
 main();
