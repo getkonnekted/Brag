@@ -79,23 +79,23 @@ video{width:100%;height:100%;object-fit:cover}
 .scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.52),transparent 36%,rgba(0,0,0,.68));pointer-events:none}
 .vignette{position:absolute;inset:0;box-shadow:inset 0 0 140px rgba(0,0,0,.72);pointer-events:none}
 .brand{position:absolute;left:135px;top:78px;font:600 14px ui-monospace,monospace;letter-spacing:.16em}
-.kicker{position:absolute;left:135px;bottom:175px;font:500 12px ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;opacity:.72}
+.kicker{position:absolute;left:135px;bottom:255px;max-width:1420px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font:500 12px ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;opacity:.72}
 .title{position:absolute;left:135px;bottom:78px;max-width:1420px;font-size:clamp(42px,6vw,88px);line-height:.95;letter-spacing:-.045em;font-weight:650}
 .pill{position:absolute;right:135px;top:78px;border:1px solid #777;border-radius:999px;padding:9px 14px;font:500 11px ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;background:#0008}
 </style>
 </head>
 <body>
 <div id="main" data-composition-id="main" data-start="0" data-width="1920" data-height="1080" data-duration="${duration}">
-  <div class="stage clip" data-duration="${duration}" data-track-index="0">
-    <div class="frame">
+  <div id="stage" class="stage clip" data-duration="${duration}" data-track-index="0">
+    <div id="product-frame" class="frame">
       <video id="real-product-footage" class="clip" src="assets/${assetName}" data-start="0" data-duration="${duration}" data-track-index="0" autoplay muted playsinline></video>
-      <div class="scrim"></div>
-      <div class="vignette"></div>
+      <div id="scrim" class="scrim"></div>
+      <div id="vignette" class="vignette"></div>
     </div>
-    <div class="brand">DEMO. / REAL PRODUCT</div>
-    <div class="pill">${esc(director.archetype || "product workflow")}</div>
-    <div class="kicker">${esc(label)}</div>
-    <div class="title">${esc(name)}<br><span style="font-weight:400;opacity:.78">${esc(promise)}</span></div>
+    <div id="brand" class="brand">DEMO. / REAL PRODUCT</div>
+    <div id="archetype-pill" class="pill">${esc(director.archetype || "product workflow")}</div>
+    <div id="workflow-kicker" class="kicker">${esc(label)}</div>
+    <div id="title" class="title">${esc(name)}<br><span id="promise" style="font-weight:400;opacity:.78">${esc(promise)}</span></div>
   </div>
 </div>
 <script>
@@ -104,8 +104,8 @@ const tl = gsap.timeline({ paused: true });
 const revealEnd = Math.min(Math.max(${duration.toFixed(3)}, 3.2), 5.5);
 tl.from(".frame", { opacity: 0, scale: 1.035, duration: 0.55, ease: "power2.out" }, 0);
 tl.from(".brand,.pill", { opacity: 0, y: -8, duration: 0.35, stagger: 0.08 }, 0.15);
-tl.from(".kicker,.title", { opacity: 0, y: 28, duration: 0.65, stagger: 0.08, ease: "power3.out" }, 0.35);
-tl.to(".title,.kicker,.pill,.scrim", { opacity: 0, duration: 0.55, ease: "power2.inOut" }, Math.max(2.1, revealEnd - 2.2));
+tl.from("#workflow-kicker,#title", { opacity: 0, y: 28, duration: 0.65, stagger: 0.08, ease: "power3.out" }, 0.35);
+tl.to("#title,#workflow-kicker,#archetype-pill,#scrim", { opacity: 0, duration: 0.55, ease: "power2.inOut" }, Math.max(2.1, revealEnd - 2.2));
 tl.to(".frame", { scale: 1.012, duration: Math.max(0.8, revealEnd - 2.1), ease: "none", overwrite: "auto" }, 0);
 window.__timelines["main"] = tl;
 </script>
