@@ -3,6 +3,47 @@ const fs = require("fs");
 function clean(value) { return String(value || "").replace(/\s+/g, " ").trim(); }
 function unique(values) { return [...new Set(values.filter(Boolean))]; }
 
+const STOP_WORDS = new Set([
+  "the","and","for","with","from","this","that","your","you","our","into","using",
+  "how","what","when","where","which","their","them","will","can","now","more",
+  "real","product","platform","tool","app","software","system","online","get",
+  "make","show","use","new","one","user","users"
+]);
+
+function evidenceTerms(text = "") {
+  return unique(
+    clean(text)
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, " ")
+      .split(/\s+/)
+      .filter(word => word.length >= 4 && !STOP_WORDS.has(word))
+  ).slice(0, 18);
+}
+
+function actionScore(action, intelligence = {}) {
+  const text = clean(action?.text);
+  if (!text) return -1000;
+  if (intelligence.blockedPattern?.test(text)) return -1000;
+
+  const lower = text.toLowerCase();
+  const terms = intelligence.proofTerms || [];
+  const matches = terms.filter(term => lower.includes(term));
+
+  let score = 0;
+  if (intelligence.strongestAction && lower === intelligence.strongestAction.toLowerCase()) score += 90;
+  if (/get started|try|demo|start|launch|play|continue|next|create|new|draw|diagram|design|edit|generate/i.test(text)) score += 35;
+  if (/open|view|explore|discover|learn more/i.test(text)) score += 15;
+  score += matches.length * 28;
+
+  if (intelligence.archetype === "ai-workflow" && /generate|ask|prompt|run|create|summarize|analy/i.test(text)) score += 24;
+  if (intelligence.archetype === "data-workflow" && /dashboard|analytics|report|metric|insight|view|filter/i.test(text)) score += 24;
+  if (intelligence.archetype === "commerce" && /product|shop|cart|order|buy|price|plan/i.test(text)) score += 24;
+  if (intelligence.archetype === "creation-workflow" && /create|new|draw|design|edit|compose|generate/i.test(text)) score += 24;
+  if (intelligence.archetype === "collaboration" && /workspace|team|share|comment|invite/i.test(text)) score += 24;
+
+  return score;
+}
+
 function buildIntelligence(inspection = {}) {
   const headings = (inspection.headings || inspection.evidence?.headings || []).map(clean).filter(Boolean);
   const buttons = (inspection.buttons || inspection.evidence?.uiLabels || []).map(item => clean(typeof item === "string" ? item : item.text)).filter(Boolean);
@@ -25,7 +66,23 @@ function buildIntelligence(inspection = {}) {
   const blocked = /(open|save|download|upload|export|import|settings|help|login|sign in|log in|logout|payment|checkout)/i;
   const actionPattern = /(start|get started|try|demo|create|new|begin|launch|explore|play|continue|next|draw|canvas|whiteboard|diagram|design|compose|edit|generate)/i;
   const actions = unique([...buttons, ...links]).filter(a => !blocked.test(a));
-  const strongestAction = actions.find(a => actionPattern.test(a)) || actions[0] || null;
+  const proofTerms = unique([
+    ...evidenceTerms(inspection.description || ""),
+    ...evidenceTerms(inspection.product?.description || ""),
+    ...evidenceTerms(headings.join(" ")),
+    ...evidenceTerms(buttons.map(item => typeof item === "string" ? item : item.text).join(" ")),
+  ]).filter(term => term.length >= 4);
+
+  const rankedActions = actions
+    .map(text => ({ text, score: actionScore({ text }, { archetype, proofTerms }) }))
+    .sort((a, b) => b.score - a.score);
+
+  const strongestAction =
+    rankedActions.find(item => actionPattern.test(item.text))?.text ||
+    rankedActions[0]?.text ||
+    actions[0] ||
+    null;
+
   const workflow = {
     "ai-workflow": ["Give the system an input", "Let the system process it", "Reveal the generated result"],
     "data-workflow": ["Open the useful data view", "Focus on the key signal", "Show the resulting insight"],
@@ -34,8 +91,36 @@ function buildIntelligence(inspection = {}) {
     collaboration: ["Enter the shared workspace", "Show the collaborative action", "Reveal the shared outcome"],
     product: ["Open the primary experience", "Show the core user action", "Reveal the useful outcome"]
   }[archetype];
-  const promise = clean(inspection.description || inspection.product?.description) || clean(headings[0]) || clean(inspection.title || inspection.product?.name) || "Show the product solving a real user problem.";
-  return { version: "2.0", product: clean(inspection.title || inspection.product?.name) || "Untitled product", promise: promise.slice(0, 240), archetype, strongestAction, workflow, proof: workflow[2], signals, evidence: { headings: headings.slice(0, 12), actions: actions.slice(0, 20), links: links.slice(0, 12) } };
+  const rawPromise = clean(inspection.description || inspection.product?.description) ||
+    clean(headings[0]) ||
+    clean(inspection.title || inspection.product?.name) ||
+    "Show the product solving a real user problem.";
+
+  const product = clean(inspection.title || inspection.product?.name) || "Untitled product";
+  const promise = rawPromise
+    .replace(/\b(we|our|i|my)\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 240);
+
+  return {
+    version: "2.1",
+    product,
+    promise,
+    archetype,
+    strongestAction,
+    workflow,
+    proof: workflow[2],
+    proofTerms: proofTerms.slice(0, 18),
+    blockedPattern: blocked,
+    rankedActions: rankedActions.slice(0, 10),
+    signals,
+    evidence: {
+      headings: headings.slice(0, 12),
+      actions: actions.slice(0, 20),
+      links: links.slice(0, 12)
+    }
+  };
 }
 
 function chooseAngle(intelligence, options = {}) {
@@ -176,7 +261,8 @@ module.exports = {
   buildStoryboard,
   buildShotPlan,
   evaluateCapturedState,
-  buildNarrative
+  buildNarrative,
+  actionScore
 };
 
 if (require.main === module) {
