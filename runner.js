@@ -740,11 +740,24 @@ pageCrashed = true;
 );
 
 try {
+try {
 await page.goto(url, {
 waitUntil:
 "domcontentloaded",
 timeout: 30000
 });
+} catch (error) {
+const requestSummary = requestFailures
+.slice(-8)
+.map(item =>
+\`\${item.url} — \${item.failure}\`
+)
+.join("\\n");
+
+throw new Error(
+\`Navigation failed for \${url}: \${error.message}\\n\${requestSummary ? "Recent request failures:\\n" + requestSummary : "No request failures were recorded."}\`
+);
+}
 
 
 await waitForStability(
