@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "BRAG | Product Demo Engine",
+  title: "demo. | Product Demo Engine",
   description: "Turn what you built into a demo people understand."
 };
 
