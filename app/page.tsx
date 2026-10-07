@@ -69,8 +69,9 @@ export default function Home() {
       const produceData = await produceResponse.json().catch(() => ({}));
 
       if (!produceResponse.ok || !produceData.ok) {
-        const log = typeof produceData.log === "string" ? produceData.log.slice(-500) : "";
-        throw new Error(produceData.error || log || "Could not produce the demo.");
+        const log = typeof produceData.log === "string" ? produceData.log : "";
+        const detail = typeof produceData.error === "string" ? produceData.error : "";
+        throw new Error(detail || log.slice(-1500) || "Could not produce the demo.");
       }
 
       const nextVideos: Record<"16x9" | "9x16", string> = { "16x9": "", "9x16": "" };
