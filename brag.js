@@ -127,6 +127,9 @@ function main() {
     if (!item.exists || item.bytes === 0) throw new Error("Delivery artifact is missing or empty: " + item.file);
     return item;
   });
+  console.log("\nRunning production quality gate…");
+  run("PRODUCTION QUALITY GATE", "production-gate.js", [], "verify", 99, "Checking dimensions, duration and delivery integrity…");
+
   console.log("\nDelivery artifacts:");
   console.log(JSON.stringify(artifactInfo, null, 2));
 
