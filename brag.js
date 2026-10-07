@@ -78,6 +78,7 @@ function main() {
   fs.rmSync("output/final", { recursive: true, force: true });
   fs.mkdirSync("output/final", { recursive: true });
   fs.mkdirSync("output", { recursive: true });
+  fs.writeFileSync("output/request.json", JSON.stringify({ description: description || null, formats }, null, 2));
 
   run("REAL PRODUCT INSPECTION", "capture.js", [url], "inspect", 12, "Understanding the real product…");
   run("BRAG DIRECTOR EVIDENCE", "director.js", [], "direct", 28, "Choosing the strongest workflow…");
