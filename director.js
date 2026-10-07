@@ -60,6 +60,35 @@ function buildDirectorManifest(inspection, options = {}) {
 
 function buildStoryboard(inspection) { return buildDirectorManifest(inspection); }
 
+function evaluateCapturedState(state = {}, intelligence = {}) {
+  const headings = (state.headings || []).join(" ");
+  const title = clean(state.title);
+  const text = (headings + " " + title).toLowerCase();
+
+  const proofTerms =
+    intelligence.archetype === "ai-workflow"
+      ? /result|output|generated|response|answer|complete|done/
+      : intelligence.archetype === "data-workflow"
+        ? /dashboard|analytics|report|metric|insight|score|result/
+        : intelligence.archetype === "commerce"
+          ? /product|price|offer|cart|order|details/
+          : /result|success|complete|done|dashboard|output|created|ready/;
+
+  const proof = proofTerms.test(text);
+  const useful = Boolean(title || headings);
+
+  return {
+    useful,
+    proof,
+    decision: proof ? "hold-result" : useful ? "continue" : "replan",
+    reason: proof
+      ? "Captured state contains evidence of the intended outcome."
+      : useful
+        ? "Captured state is meaningful but does not yet show strong proof."
+        : "Captured state contains too little visible evidence."
+  };
+}
+
 function buildShotPlan(intelligence, options = {}) {
   const workflow = Array.isArray(intelligence?.workflow)
     ? intelligence.workflow
@@ -110,7 +139,8 @@ module.exports = {
   chooseAngle,
   buildDirectorManifest,
   buildStoryboard,
-  buildShotPlan
+  buildShotPlan,
+  evaluateCapturedState
 };
 
 if (require.main === module) {
