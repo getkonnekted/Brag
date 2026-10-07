@@ -113,11 +113,6 @@ height: 720
 "9x16": {
 width: 720,
 height: 1280
-},
-
-"1x1": {
-width: 1080,
-height: 1080
 }
 };
 
