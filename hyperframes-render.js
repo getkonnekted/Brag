@@ -17,7 +17,7 @@ function run(args) {
     ["hyperframes", ...args],
     {
       cwd: compositionDir,
-      env: process.env,
+      env: { ...process.env, PRODUCER_FORCE_SCREENSHOT: process.env.PRODUCER_FORCE_SCREENSHOT || "true" },
       stdio: "inherit"
     }
   );
