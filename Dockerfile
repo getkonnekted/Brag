@@ -9,6 +9,7 @@ RUN apt-get update \
 COPY package*.json ./
 
 RUN npm install
+RUN npx hyperframes browser ensure
 
 COPY . .
 
