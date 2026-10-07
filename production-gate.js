@@ -1,11 +1,13 @@
 const fs = require("fs");
 const { execFileSync } = require("child_process");
 
-const files = [
-  ["master", "output/final/brag.mp4", 1920, 1080],
-  ["16:9", "output/final/product-demo-16x9.mp4", 1920, 1080],
-  ["9:16", "output/final/product-demo-9x16.mp4", 1080, 1920]
-];
+const formats = String(process.env.DEMO_OUTPUT_FORMATS || "16x9,1x1,9x16").split(",").map(value => value.trim()).filter(Boolean);
+const delivery = {
+  "16x9": ["output/final/product-demo-16x9.mp4", 1920, 1080],
+  "1x1": ["output/final/product-demo-1x1.mp4", 1080, 1080],
+  "9x16": ["output/final/product-demo-9x16.mp4", 1080, 1920]
+};
+const files = [["master", "output/final/brag.mp4", 1920, 1080], ...formats.filter(format => delivery[format]).map(format => [format, ...delivery[format]])];
 
 function inspect(file) {
   const data = JSON.parse(execFileSync("ffprobe", [
