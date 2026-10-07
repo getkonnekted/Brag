@@ -1,8 +1,5 @@
 const assert = require("assert");
-const {
-  buildIntelligence,
-  actionScore
-} = require("./director");
+const { buildIntelligence, actionScore } = require("./director");
 
 const cases = [
   {
@@ -52,43 +49,42 @@ const cases = [
     },
     expectedArchetype: "collaboration",
     expectedAction: "Open workspace"
+  },
+  {
+    name: "generic SaaS",
+    inspection: {
+      title: "Project Tracker",
+      description: "Manage projects and organize work for your team.",
+      headings: ["Projects", "Recent work"],
+      buttons: [{text:"Open project"}, {text:"Create project"}, {text:"Settings"}],
+      links: []
+    },
+    expectedArchetype: "collaboration",
+    expectedAction: "Open project"
+  },
+  {
+    name: "developer tool",
+    inspection: {
+      title: "API Monitor",
+      description: "Monitor API requests, latency, errors and service health.",
+      headings: ["API health", "Requests"],
+      buttons: [{text:"View requests"}, {text:"Create monitor"}, {text:"Settings"}],
+      links: []
+    },
+    expectedArchetype: "data-workflow",
+    expectedAction: "View requests"
   }
 ];
 
 let passed = 0;
-
 for (const test of cases) {
   const intelligence = buildIntelligence(test.inspection);
-
-  assert.strictEqual(
-    intelligence.archetype,
-    test.expectedArchetype,
-    test.name + ": wrong archetype"
-  );
-
-  const ranked = intelligence.rankedActions.map(item => item.text);
-  assert(
-    ranked.includes(test.expectedAction),
-    test.name + ": expected action missing from ranked actions"
-  );
-
+  assert.strictEqual(intelligence.archetype, test.expectedArchetype, test.name + ": wrong archetype");
   const topUseful = intelligence.rankedActions[0]?.text;
-  assert(
-    topUseful === test.expectedAction,
-    test.name + ": director did not rank the product-specific action first; got " + topUseful
-  );
-
-  const blockedScore = actionScore(
-    {text: "Settings"},
-    intelligence
-  );
-  assert(
-    blockedScore < 0,
-    test.name + ": blocked action should not receive a positive score"
-  );
-
+  assert(topUseful === test.expectedAction, test.name + ": expected top action " + test.expectedAction + ", got " + topUseful);
+  const blockedScore = actionScore({text: "Settings"}, intelligence);
+  assert(blockedScore < 0, test.name + ": Settings must be rejected");
   passed++;
   console.log("PASS", test.name, "→", intelligence.archetype, "→", topUseful);
 }
-
 console.log("\nDirector benchmark:", passed + "/" + cases.length, "passed");
