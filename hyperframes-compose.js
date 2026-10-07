@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const { spawnSync } = require("child_process");
 
 const root = path.resolve("output");
 const recording = path.join(root, "recording");
@@ -30,55 +31,93 @@ function esc(v) {
     .replace(/"/g, "&quot;");
 }
 
+function durationSeconds(file) {
+  const result = spawnSync(
+    process.platform === "win32" ? "ffprobe.exe" : "ffprobe",
+    ["-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", file],
+    { encoding: "utf8" }
+  );
+  const value = Number.parseFloat((result.stdout || "").trim());
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error("Could not determine real product footage duration.");
+  }
+  return Math.min(Math.max(value, 1), 25);
+}
+
+const duration = durationSeconds(footagePath);
 const compositionRoot = path.join(root, "hyperframes-composition");
 const compositionDir = path.join(compositionRoot, "composition");
+const assetsDir = path.join(compositionDir, "assets");
 
 fs.rmSync(compositionRoot, { recursive: true, force: true });
-fs.mkdirSync(compositionDir, { recursive: true });
+fs.mkdirSync(assetsDir, { recursive: true });
 
-const videoSrc = path.relative(compositionDir, footagePath).replace(/\\/g, "/");
+const assetName = "real-product-footage.webm";
+fs.copyFileSync(footagePath, path.join(assetsDir, assetName));
+
 const label = states[0] && states[0].action
   ? states[0].action.text
   : (workflow[0] || "real product workflow");
 
-const html = '<!doctype html><html><head><meta charset="utf-8"><style>' +
-'*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#080808;color:#fff;font-family:Inter,system-ui,sans-serif}' +
-'.stage{position:relative;width:100vw;height:100vh}.frame{position:absolute;inset:6vh 6vw;background:#111;border:1px solid #333;border-radius:22px;overflow:hidden;box-shadow:0 30px 100px #000}' +
-'video{width:100%;height:100%;object-fit:cover}.scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.58),transparent 40%,rgba(0,0,0,.76))}' +
-'.brand{position:absolute;left:7vw;top:7vh;font:600 14px ui-monospace,monospace;letter-spacing:.16em}.kicker{position:absolute;left:7vw;bottom:16vh;font:500 12px ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;opacity:.72}' +
-'.title{position:absolute;left:7vw;bottom:8vh;max-width:74vw;font-size:clamp(42px,6vw,88px);line-height:.95;letter-spacing:-.045em;font-weight:650}.pill{position:absolute;right:7vw;top:7vh;border:1px solid #777;border-radius:999px;padding:9px 14px;font:500 11px ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;background:#0008}' +
-'</style></head><body><div class="stage"><div class="frame"><video src="' + esc(videoSrc) + '" autoplay muted loop playsinline></video><div class="scrim"></div></div>' +
-'<div class="brand">BRAG / REAL PRODUCT</div><div class="pill">' + esc(director.archetype || "product workflow") + '</div>' +
-'<div class="kicker">' + esc(label) + '</div><div class="title">' + esc(name) + '<br><span style="font-weight:400;opacity:.78">' + esc(promise) + '</span></div>' +
-'</div></body></html>';
+const html = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1920,height=1080">
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;width:1920px;height:1080px;overflow:hidden;background:#080808;color:#fff;font-family:Inter,system-ui,sans-serif}
+.stage{position:relative;width:1920px;height:1080px}
+.frame{position:absolute;left:115px;top:65px;width:1690px;height:950px;background:#111;border:1px solid #333;border-radius:22px;overflow:hidden;box-shadow:0 30px 100px #000}
+video{width:100%;height:100%;object-fit:cover}
+.scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.58),transparent 40%,rgba(0,0,0,.76))}
+.brand{position:absolute;left:135px;top:78px;font:600 14px ui-monospace,monospace;letter-spacing:.16em}
+.kicker{position:absolute;left:135px;bottom:175px;font:500 12px ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;opacity:.72}
+.title{position:absolute;left:135px;bottom:78px;max-width:1420px;font-size:clamp(42px,6vw,88px);line-height:.95;letter-spacing:-.045em;font-weight:650}
+.pill{position:absolute;right:135px;top:78px;border:1px solid #777;border-radius:999px;padding:9px 14px;font:500 11px ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;background:#0008}
+</style>
+</head>
+<body>
+<div id="main" data-composition-id="main" data-start="0" data-width="1920" data-height="1080" data-duration="${duration}">
+  <div class="stage clip" data-start="0" data-duration="${duration}" data-track-index="0">
+    <div class="frame">
+      <video class="clip" src="assets/${assetName}" data-start="0" data-duration="${duration}" data-track-index="0" autoplay muted playsinline></video>
+      <div class="scrim"></div>
+    </div>
+    <div class="brand">BRAG / REAL PRODUCT</div>
+    <div class="pill">${esc(director.archetype || "product workflow")}</div>
+    <div class="kicker">${esc(label)}</div>
+    <div class="title">${esc(name)}<br><span style="font-weight:400;opacity:.78">${esc(promise)}</span></div>
+  </div>
+</div>
+<script>
+window.__timelines = window.__timelines || {};
+const tl = gsap.timeline({ paused: true });
+tl.from(".brand,.pill", { opacity: 0, duration: 0.35, stagger: 0.08 }, 0.1);
+tl.from(".kicker,.title", { opacity: 0, y: 24, duration: 0.55, stagger: 0.08, ease: "power3.out" }, 0.35);
+window.__timelines["main"] = tl;
+</script>
+</body>
+</html>`;
 
 fs.writeFileSync(path.join(compositionDir, "index.html"), html, "utf8");
 
-fs.writeFileSync(
-  path.join(compositionRoot, "brag-plan.md"),
+fs.writeFileSync(path.join(compositionRoot, "brag-plan.md"),
   "# BRAG Plan\n\nProduct: " + name +
   "\nPromise: " + promise +
   "\nArchetype: " + (director.archetype || "product") +
+  "\nDuration: " + duration.toFixed(2) + "s" +
   "\n\nReal workflow evidence:\n" +
   states.slice(0, 5).map((s, i) =>
     (i + 1) + ". " + ((s.action && s.action.text) || s.title || "Observed product state")
-  ).join("\n"),
-  "utf8"
-);
+  ).join("\n"), "utf8");
 
-fs.writeFileSync(
-  path.join(compositionRoot, "composition-brief.md"),
+fs.writeFileSync(path.join(compositionRoot, "composition-brief.md"),
   "# Composition Brief\n\n" +
   "Objective: Turn the observed product workflow into a concise product story.\n" +
   "Visual source: real Playwright browser footage.\n" +
   "Creative rule: product evidence first; no invented interface.\n" +
-  "Workflow: " + workflow.join(" -> "),
-  "utf8"
-);
+  "Workflow: " + workflow.join(" -> ") +
+  "\nDuration: " + duration.toFixed(2) + " seconds.", "utf8");
 
-console.log(JSON.stringify({
-  ok: true,
-  composition: compositionDir,
-  states: states.length,
-  footage: footagePath
-}, null, 2));
+console.log(JSON.stringify({ ok: true, composition: compositionDir, states: states.length, duration, footage: footagePath }, null, 2));
