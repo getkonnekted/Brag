@@ -12,7 +12,7 @@ const ENGINE_TOKEN = process.env.BRAG_ENGINE_TOKEN || "";
 const ALLOWED_ORIGIN = process.env.BRAG_ALLOWED_ORIGIN || "*";
 
 const ROOT = __dirname;
-const ENGINE_VERSION = "3.2";
+const ENGINE_VERSION = "3.3";
 
 /* =========================================================
    RESPONSE HELPERS
@@ -140,7 +140,13 @@ async function inspectProduct(url) {
     );
 
     browser = await chromium.launch({
-      headless: true
+      headless: true,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu"
+      ]
     });
 
     const page = await browser.newPage({
@@ -364,9 +370,14 @@ async function handleInspect(
       error
     );
 
+    const detail =
+      error instanceof Error
+        ? (error.stack || error.message)
+        : String(error);
+
     return sendJson(
       res,
-      500,
+      502,
       {
         ok: false,
         error:
@@ -374,6 +385,7 @@ async function handleInspect(
             ? error.message
             : String(error),
         stage: "inspect",
+        log: detail.slice(-12000),
         timestamp:
           new Date().toISOString()
       }
