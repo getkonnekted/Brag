@@ -1,222 +1,345 @@
+<div align="center">
+
 # demo.
 
-**PRODUCT → STORY → VIDEO**
+### PRODUCT → STORY → VIDEO
 
-> You built it. Now demo it.
+**You built it. Now demo it.**
 
-demo. turns a real product into a short, cinematic demo people can understand — without you recording a thing.
+Turn a real product into a short, cinematic demo people can understand — without recording a thing.
 
-## What it does
+<br />
 
-demo. studies a real product, finds a useful workflow, captures the real product with Playwright, and turns the evidence into a finished demo video.
+![Status](https://img.shields.io/badge/status-production-00C853?style=for-the-badge)
+![Engine](https://img.shields.io/badge/engine-Playwright%20%2B%20FFmpeg-7C3AED?style=for-the-badge)
+![Deployment](https://img.shields.io/badge/deployed-Railway-0B0D0E?style=for-the-badge)
+![UI](https://img.shields.io/badge/control%20surface-Vercel-000000?style=for-the-badge)
 
-**No fake UI. No invented workflow. Real product. Real interaction. Real proof.**
+<br />
 
-The core principle is:
+**REAL PRODUCT · REAL INTERACTION · REAL PROOF**
+
+</div>
+
+---
+
+## ✦ The idea
+
+Most product demos start with a screen recording.
+
+**demo. starts with the product.**
+
+It studies a real product, finds a useful workflow, captures the real interaction with a browser, and turns that evidence into a finished demo.
 
 > **AI should be the director, not the camera.**
 
-The Director decides **what is worth showing**. The browser captures **what actually happened**. The renderer turns that evidence into a finished video. QA decides whether it is safe to ship.
+No fake UI.  
+No invented workflow.  
+No imaginary product states.
 
-## Architecture
+Just the real product, directed into a story people can understand.
 
-The production system is split into a lightweight control surface and a browser/rendering worker:
+---
 
+## 🎬 How it works
+
+<div align="center">
+
+**01 · INSPECT**  
+Understand the real product
+
+↓  
+
+**02 · DIRECT**  
+Choose the strongest story
+
+↓  
+
+**03 · CAPTURE**  
+Record the real browser interaction
+
+↓  
+
+**04 · COMPOSE**  
+Build the visual story
+
+↓  
+
+**05 · VALIDATE**  
+Check the composition
+
+↓  
+
+**06 · RENDER**  
+Produce the final video
+
+↓  
+
+**07 · DELIVER**  
+16:9 · 1:1 · 9:16
+
+</div>
+
+---
+
+## ⚡ Architecture
+
+```text
+                    ┌──────────────────┐
+                    │      USER        │
+                    │  Product + Story │
+                    └────────┬─────────┘
+                             │
+                             ▼
+                    ┌──────────────────┐
+                    │ VERCEL           │
+                    │ Control Surface  │
+                    └────────┬─────────┘
+                             │
+                             ▼
+                    ┌──────────────────┐
+                    │ RAILWAY          │
+                    │ Production Engine│
+                    └────────┬─────────┘
+                             │
+              ┌──────────────┼──────────────┐
+              ▼              ▼              ▼
+          INSPECT         DIRECT         CAPTURE
+              │              │              │
+              └──────────────┼──────────────┘
+                             ▼
+                    ┌──────────────────┐
+                    │ REAL PLAYWRIGHT  │
+                    │ PRODUCT FOOTAGE  │
+                    └────────┬─────────┘
+                             ▼
+                    ┌──────────────────┐
+                    │ COMPOSITION      │
+                    │ + HYPERFRAMES QA │
+                    └────────┬─────────┘
+                             ▼
+                    ┌──────────────────┐
+                    │ DETERMINISTIC    │
+                    │ FFMPEG RENDERER  │
+                    └────────┬─────────┘
+                             ▼
+              ┌──────────────┼──────────────┐
+              ▼              ▼              ▼
+            16:9            1:1            9:16
 ```
-User
-  ↓
-Vercel control surface
-  ↓
-Railway production engine
-  ↓
-Inspect → Direct → Capture
-  ↓
-Real Playwright browser footage
-  ↓
-Composition + Hyperframes validation
-  ↓
-Deterministic FFmpeg renderer
-  ↓
-Quality gate
-  ↓
-16:9 + 1:1 + 9:16
-```
 
-### Control surface
+### Why the split?
 
-The web UI runs on Vercel.
+The browser and rendering workload is too heavy for the control surface.
 
-It handles:
+So:
 
-- product URL and description input
-- production progress
-- stage/status reporting
-- artifact delivery
-- transient polling recovery
+**Vercel controls. Railway produces.**
 
-The production browser and rendering workload does **not** run on Vercel.
+The production worker handles Playwright, Chromium, composition, validation, FFmpeg and final delivery.
 
-### Production engine
+---
 
-The worker runs on Railway and handles the heavy work:
+## 🎥 The production engine
 
-- Playwright / Chromium
-- product inspection
-- workflow discovery
-- browser recording
-- composition
-- Hyperframes validation
-- FFmpeg rendering
-- quality checks
-- final artifact generation
+The engine is deliberately evidence-first.
 
-The public production worker is configured through:
+### Director
 
-`NEXT_PUBLIC_BRAG_ENGINE_URL`
+The Director:
 
-## Production pipeline
+- understands what the product actually does
+- identifies the strongest visible promise
+- selects a bounded, high-signal workflow
+- plans a short demo story
+- keeps claims grounded in observed evidence
+- avoids invented UI, numbers and workflows
 
-```
-PRODUCT
-   ↓
-INSPECT
-   ↓
-UNDERSTAND
-   ↓
-DIRECT
-   ↓
-CAPTURE REAL PRODUCT
-   ↓
-EDIT / COMPOSE
-   ↓
-HYPERFRAMES CHECK
-   ↓
-FFMPEG RENDER
-   ↓
-QUALITY GATE
-   ↓
-DELIVER
-```
-
-The production engine is deliberately evidence-first. A demo should be based on what the browser actually observed rather than an imagined version of the product.
-
-## Rendering
-
-Hyperframes is used as a **composition validator**. It checks the planned composition for layout, motion, contrast, lint, and runtime problems before delivery.
-
-The final production renderer uses deterministic FFmpeg.
-
-The renderer currently supports:
-
-- real browser footage
-- cinematic camera movement
-- animated typography
-- product/story copy
-- vignette and framing
-- optional narration when available
-- an audio fallback when narration is unavailable
-- H.264 video
-- AAC audio
-- 16:9, 1:1 and 9:16 delivery
-
-This separation is intentional: Hyperframes validates the composition; deterministic FFmpeg produces the delivery artifact reliably within the production worker's resource limits.
-
-## Director
-
-The Director is responsible for:
-
-- understanding what the product actually does
-- identifying the strongest visible promise
-- selecting a bounded, high-signal workflow
-- planning a short demo story
-- keeping claims grounded in observed evidence
-- choosing useful copy
-- avoiding invented UI, numbers, claims, or workflows
-
-Director guidance lives under:
+Director guidance:
 
 `skills/demo/SKILL.md`
 
-## Repository structure
+### Browser
 
-Important areas include:
+Real browser automation captures the product itself.
 
+**Playwright + Chromium**
+
+### Validator
+
+Hyperframes checks the composition before delivery:
+
+- layout
+- motion
+- contrast
+- lint
+- runtime
+
+Hyperframes is the **validator**, not the final production renderer.
+
+### Renderer
+
+Deterministic FFmpeg produces the final delivery artifact.
+
+Current rendering includes:
+
+| Capability | |
+|---|---|
+| Real product footage | ✓ |
+| Cinematic camera movement | ✓ |
+| Animated typography | ✓ |
+| Story / product copy | ✓ |
+| Framing + vignette | ✓ |
+| Narration when available | ✓ |
+| Audio fallback | ✓ |
+| H.264 video | ✓ |
+| AAC audio | ✓ |
+| 16:9 output | ✓ |
+| 1:1 output | ✓ |
+| 9:16 output | ✓ |
+
+---
+
+## 🧠 The rule
+
+### Don't invent what the product can do.
+
+The browser is the source of truth.
+
+```text
+Observed
+   ↓
+Understood
+   ↓
+Directed
+   ↓
+Captured
+   ↓
+Rendered
+   ↓
+Delivered
 ```
-app/                    # demo. web control surface
-skills/demo/            # Director skill
-server.js               # production worker entry point
-hyperframes-render.js   # composition validation + deterministic renderer
-output/                 # generated production artifacts
+
+If the browser didn't observe it, the demo shouldn't claim it.
+
+---
+
+## 📦 Output
+
+A successful production run generates:
+
+```text
+output/final/
+├── brag.mp4
+├── product-demo-1x1.mp4
+├── product-demo-9x16.mp4
+└── production.json
 ```
 
-The exact repository structure may evolve as the production pipeline evolves.
+Three delivery formats.  
+One production run.
 
-## Local development
+---
 
-Install dependencies:
+## 🛠️ Stack
+
+<div align="center">
+
+![Next.js](https://img.shields.io/badge/Next.js-000000?style=flat-square&logo=next.js&logoColor=white)
+![Playwright](https://img.shields.io/badge/Playwright-2EAD33?style=flat-square&logo=playwright&logoColor=white)
+![FFmpeg](https://img.shields.io/badge/FFmpeg-007808?style=flat-square&logo=ffmpeg&logoColor=white)
+![Railway](https://img.shields.io/badge/Railway-0B0D0E?style=flat-square&logo=railway&logoColor=white)
+![Vercel](https://img.shields.io/badge/Vercel-000000?style=flat-square&logo=vercel&logoColor=white)
+
+</div>
+
+---
+
+## 🚀 Local development
+
+Install:
 
 ```bash
 npm install
 npx playwright install chromium
 ```
 
-Run the application using the repository's available scripts:
+Run the control surface:
 
 ```bash
 npm run dev
 ```
 
-For the production browser worker, use the engine scripts/configuration defined by the repository rather than assuming that the Vercel control surface can perform browser rendering itself.
+The production browser worker should be run using the engine scripts and configuration defined by the repository.
 
-## Output
+---
 
-A successful production run generates the final demo artifacts under `output/final/`, including:
+## 📁 Repository
+
+```text
+app/                    → demo. control surface
+skills/demo/            → Director skill
+server.js               → production worker
+hyperframes-render.js   → validation + renderer
+output/                 → generated artifacts
+```
+
+---
+
+## 🟢 Current status
+
+**Production-ready engine online.**
+
+The current production architecture:
 
 ```
-brag.mp4
-product-demo-1x1.mp4
-product-demo-9x16.mp4
-production.json
+Vercel
+  ↓
+Railway
+  ↓
+Playwright
+  ↓
+Hyperframes validation
+  ↓
+FFmpeg
+  ↓
+16:9 · 1:1 · 9:16
 ```
 
-The exact filenames are retained for compatibility with the current production pipeline.
+The renderer now includes cinematic motion, typography and audio while preserving real Playwright product footage.
 
-## Design principles
+---
 
-### 1. Real product first
+## ✦ Principles
 
-The source footage comes from the actual product.
+**01 — Real product first**  
+The footage comes from the actual product.
 
-### 2. Evidence over imagination
+**02 — Evidence over imagination**  
+Observed behaviour beats invented claims.
 
-If the browser did not observe it, the demo should not claim it.
-
-### 3. Director, not camera
-
+**03 — Director, not camera**  
 AI decides the story. Automation captures the evidence.
 
-### 4. Short and understandable
+**04 — Short and clear**  
+One strong story is better than a feature dump.
 
-The goal is not to document every feature. It is to make one useful product story obvious.
+**05 — Reliable production**  
+Validation and rendering have separate responsibilities.
 
-### 5. Production reliability
+**06 — Personal first**  
+No accounts, billing or SaaS complexity required for the core workflow.
 
-The final renderer should be deterministic and resource-conscious. Validation and rendering are separate responsibilities.
+---
 
-### 6. Personal-first
+<div align="center">
 
-The system is designed to be useful without accounts, billing, tenants, or a large SaaS layer.
+### build → demo → post → repeat
 
-## Current status
+**Built for people who have something real to show.**
 
-The production engine is deployed remotely on Railway and the control surface is deployed on Vercel.
+<br />
 
-The current production renderer has been updated to add cinematic motion, typography and audio while retaining the real Playwright footage and Hyperframes validation step.
+<sub>demo. · Product → Story → Video</sub>
 
-## The loop
-
-```
-build → demo → post → repeat
-```
-
-Built for people who have something real to show.
+</div>
