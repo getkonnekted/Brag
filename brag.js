@@ -133,8 +133,7 @@ function checkEnvironment() {
 function finalOutputs() {
   return [
     "brag-demo-16x9.mp4",
-    "brag-demo-9x16.mp4",
-    "brag-demo-1x1.mp4"
+    "brag-demo-9x16.mp4"
   ].map(
     (name) =>
       path.join(
