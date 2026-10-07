@@ -5,7 +5,8 @@ const path = require("path");
 const {
 buildIntelligence,
 buildShotPlan,
-evaluateCapturedState
+evaluateCapturedState,
+actionScore
 } = require("./director");
 
 const SAFE =
@@ -131,55 +132,19 @@ element.getBoundingClientRect();
 }
 
 function directorScore(action, intelligence) {
-const text = action.text;
+  const text = action?.text || "";
 
-if (!text) return -1000;
-if (BLOCKED.test(text)) return -1000;
+  if (!text || BLOCKED.test(text)) return -1000;
+  if (action.type === "submit") return -800;
 
-if (action.type === "submit") {
-return -800;
-}
+  if (
+    action.tag === "a" &&
+    !isSafeHref(action.href, intelligence.origin)
+  ) {
+    return -900;
+  }
 
-if (
-action.tag === "a" &&
-!isSafeHref(
-action.href,
-intelligence.origin
-)
-) {
-return -900;
-}
-
-const priority =
-/get started|try|demo|start|launch|play|continue|next|explore|discover|create|new|draw|diagram|design|edit/i;
-
-let score = SAFE.test(text)
-? 50
-: 0;
-
-if (priority.test(text)) {
-score += 30;
-}
-
-if (
-intelligence?.strongestAction &&
-text.toLowerCase() ===
-intelligence.strongestAction.toLowerCase()
-) {
-score += 100;
-}
-
-if (
-intelligence?.archetype ===
-"creation-workflow" &&
-/create|new|start|try|draw|diagram|design|edit/i.test(
-text
-)
-) {
-score += 40;
-}
-
-return score;
+  return actionScore(action, intelligence);
 }
 
 async function inspectForDirector(page, url) {
