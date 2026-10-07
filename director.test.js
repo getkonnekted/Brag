@@ -2,6 +2,7 @@ const assert = require("assert");
 const { buildIntelligence, actionScore } = require("./director");
 
 const cases = [
+  ...realWorldCases,
   {
     name: "AI workflow",
     inspection: {
