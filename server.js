@@ -593,8 +593,7 @@ async function handleProduce(
 
         const files = [
           "output/final/product-demo-16x9.mp4",
-          "output/final/product-demo-9x16.mp4",
-          "output/final/product-demo-1x1.mp4"
+          "output/final/product-demo-9x16.mp4"
         ];
 
         const finalFiles =
