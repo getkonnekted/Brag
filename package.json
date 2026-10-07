@@ -24,7 +24,9 @@
     "postinstall": "if [ \"$VERCEL\" = \"1\" ]; then echo 'Skipping Playwright browser install on Vercel'; else npx playwright install chromium; fi",
     "project-inspect": "node project-inspector.js",
     "director-manifest": "node director.js output/project.json",
-    "hyperframes:render": "node hyperframes-render.js"
+    "hyperframes:render": "node hyperframes-render.js",
+    "hyperframes:doctor": "npx hyperframes doctor",
+    "hyperframes:check": "npx hyperframes check"
   },
   "dependencies": {
     "playwright": "^1.55.0",
