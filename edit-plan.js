@@ -16,7 +16,7 @@ const override = fs.existsSync(overridePath)
   : { scenes: {} };
 
 const sceneOverrides = override.scenes || {};
-const global = override.global || {};
+const global = override.global || { captions: false };
 
 function applyOverride(scene, index) {
   const local = sceneOverrides[scene.id] || sceneOverrides[String(index + 1)] || {};
@@ -63,11 +63,11 @@ const plan = {
     motion: scene.motion || { type: "static", from: 1, to: 1 },
     cursor: scene.cursor || null,
     overlays: {
-      caption: global.captions !== false,
+      caption: false,
       sceneLabel: scene.id,
       cursorHighlight: Boolean(scene.cursor)
     },
-    transition: index === 0 ? "cut" : "crossfade"
+    transition: index === 0 ? "cut" : "fade"
   }))
 };
 
