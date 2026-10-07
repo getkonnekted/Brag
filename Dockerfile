@@ -6,6 +6,13 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends ffmpeg espeak-ng \
   && rm -rf /var/lib/apt/lists/*
 
+# Playwright image revisions can change the Chromium directory name.
+# Discover the installed Chromium binary instead of hard-coding a revision.
+RUN browser="$(find /ms-playwright -type f -path '*/chrome-linux/chrome' -perm -111 | head -n 1)" \
+  && test -n "$browser" \
+  && test -x "$browser" \
+  && ln -sf "$browser" /usr/local/bin/hyperframes-chromium
+
 COPY package*.json ./
 
 RUN npm install --ignore-scripts
@@ -16,8 +23,8 @@ ENV NODE_ENV=production
 ENV HYPERFRAMES_NO_UPDATE_CHECK=1
 ENV PRODUCER_FORCE_SCREENSHOT=true
 ENV PRODUCER_LOW_MEMORY_MODE=true
-ENV HYPERFRAMES_BROWSER_PATH=/ms-playwright/chromium-1194/chrome-linux/chrome
-ENV PRODUCER_HEADLESS_SHELL_PATH=/ms-playwright/chromium-1194/chrome-linux/chrome
+ENV HYPERFRAMES_BROWSER_PATH=/usr/local/bin/hyperframes-chromium
+ENV PRODUCER_HEADLESS_SHELL_PATH=/usr/local/bin/hyperframes-chromium
 
 RUN test -x "$HYPERFRAMES_BROWSER_PATH" \
   && node --check server.js \
