@@ -42,7 +42,8 @@ function safeFallback() {
     [
       "-y", "-hide_banner", "-loglevel", "warning",
       "-i", source,
-      "-vf", "scale=1920:1080:flags=lanczos",
+      "-vf", "scale=1920:1080:flags=fast_bilinear",
+      "-threads", "1", "-t", "20",
       "-an",
       "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
       "-pix_fmt", "yuv420p", "-movflags", "+faststart",
