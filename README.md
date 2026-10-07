@@ -4,217 +4,87 @@ Product-to-video demo engine.
 
 > Turn what you built into a demo people understand.
 
+## Direction
+
+demo. is now being aligned with the strongest ideas from the open-source BRAG workflow: **inspect first, choose the story, then produce**.
+
+The important separation is:
+
+```
+Director → decides what is worth showing
+Camera   → captures the evidence
+Renderer → turns the edit into a finished video
+QA       → decides whether it is safe to ship
+```
+
+The repository keeps its existing production engine while adding an explicit evidence-based Director skill under `skills/demo/SKILL.md`.
+
 ## Core rule
 
 **AI should be the director, not the camera.**
 
-demo. uses the real product as footage. It inspects a product, discovers a bounded workflow, captures real states, builds a demo story, plans motion, generates optional local narration, renders MP4s, and quality-checks the result.
+demo. uses the real product as evidence. It inspects a product, discovers a bounded workflow, captures real states, builds a demo story, plans motion, renders MP4s, and quality-checks the result.
 
 ## Pipeline
 
-`build → inspect → discover workflow → capture real footage → direct edit → narrate → render → QA → post`
+`inspect → understand → direct → capture → edit → render → QA`
 
-## v1.5
+## Director skill
 
-The Director can now evaluate captured states during the browser run.
+The Director is responsible for:
 
-After each meaningful state, demo. classifies the result as:
+- understanding what the product actually does
+- identifying the audience and strongest promise
+- selecting the highest-signal visible workflow
+- planning a 15–25 second story
+- keeping claims grounded in observed evidence
+- making voice optional
+- rejecting invented UI, claims, numbers, or workflows
 
-- `hold-result`: strong proof was found, so the run can stop and preserve the result
-- `continue`: the state is meaningful but more evidence is needed
-- `replan`: the state contains too little visible evidence
+See `skills/demo/SKILL.md`.
 
-This makes capture adaptive rather than purely step-count driven.
+## Current engine
 
-## v1.4
+The existing engine already contains:
 
-demo. now creates a Director Shot Plan before browser capture.
+- product inspection
+- workflow discovery
+- browser control
+- adaptive Director decisions
+- real browser recording
+- edit planning
+- motion/framing
+- rendering
+- optional narration
+- QA
+- local and remote worker support
 
-The plan defines the intended visual beats:
+The next engineering step is to make the new Director plan the canonical input to production instead of maintaining separate decision logic.
 
-- establish the real product
-- capture the primary action
-- capture the core interaction
-- capture the proof/result
-- hold the useful outcome
-- close on the clearest action
-
-The runner records the shot goal alongside each captured interaction. Shot planning is advisory and cannot bypass the browser safety policy.
-
-This separates two decisions:
-
-```text
-Director: What moment is worth showing?
-Camera:   How can I safely capture it?
-```
-
-## v1.3
-
-demo. now preserves the real browser recording produced by Playwright.
-
-The demo package treats that recording as primary product footage for the product-orientation scene, while state screenshots remain useful for precise workflow/result moments.
-
-Pipeline:
-
-```text
-real product
-  ↓
-Playwright recording
-  ↓
-Director-guided interaction
-  ↓
-real browser footage + state evidence
-  ↓
-edit plan
-  ↓
-voice
-  ↓
-render
-```
-
-The renderer supports video footage as well as screenshots. This keeps the product visible as it actually behaves instead of turning the entire demo into animated screenshots.
-
-Run:
-
-```bash
-npm run demo -- https://your-product.com 4 "What this product does"
-npm run edit-plan
-npm run voice
-npm run render
-npm run qa
-```
-
-## v1.2
-
-The browser runner is now Director-guided.
-
-Before interacting with a product, demo. derives the product archetype, promise, strongest visible action, and workflow intent. The runner uses those signals to rank safe actions instead of relying only on generic CTA ordering.
-
-Each selected action records the Director decision and captures the click target coordinates for later visual emphasis.
-
-The safety boundary remains unchanged:
-
-- same-origin navigation only
-- bounded step count
-- destructive/payment/auth actions blocked
-- no form submission
-- no arbitrary external navigation
-
-Run:
-
-```bash
-npm run run -- https://your-product.com 4
-```
-
-## v1.1
-
-demo.'s Director now builds a product-intelligence layer before story selection. It classifies the product archetype, extracts the product promise, identifies the strongest visible action, proposes the core workflow, and defines the proof moment.
-
-Run:
-
-```bash
-npm run capture -- https://your-product.com
-npm run director
-```
-
-The intelligence is deterministic and evidence-based. It does not invent product capabilities that were not observed during inspection.
-
-## v1.0
-
-demo. now has a local Director QA layer.
-
-Run:
-
-```bash
-npm run qa
-```
-
-QA checks:
-
-- workflow completion and captured states
-- browser console errors
-- missing footage
-- scene duration validity
-- caption length risk
-- cursor target bounds
-- 16:9, 9:16 and 1:1 MP4 existence
-- rendered video dimensions
-- rendered video duration
-- optional narration assets
-
-Reports:
-
-- `output/qa/report.json`
-- `output/qa/report.md`
-
-The report produces a 0–100 score and a release status:
-
-- **PASS**: no detected production issues
-- **WARNING**: usable, but human review is required
-- **FAIL**: do not hand off the MP4 yet
-
-A clean QA report is not a substitute for watching the final video. demo. is a production assistant, not an autonomous publisher.
-
-## v0.9
-
-Local Piper TTS remains optional:
-
-```bash
-PIPER_MODEL=/path/to/voice.onnx npm run voice
-npm run render
-npm run qa
-```
-
-Without Piper, demo. can render silent video.
-
-## Personal worker
-
-demo. is personal-first. The browser automation and video rendering stay on your machine so there is no cloud worker bill while the product is being proven.
-
-After the first setup:
+## One-command local flow
 
 ```bash
 npm install
 npx playwright install chromium
-npm run build
-npm run personal
-```
-
-`npm run personal` starts both the demo. engine and the web control surface, waits for them to become healthy, and opens demo. in your browser. You no longer need to start `npm run engine` separately.
-
-The architecture is intentionally portable:
-
-```
-Personal today
-Vercel UI / local UI → demo. Personal Worker → Playwright + Chromium → FFmpeg → video
-
-Commercial later
-demo. Web App → demo. Cloud Worker → Playwright + Chromium → FFmpeg → video
-```
-
-The same engine can move from the personal worker to a dedicated cloud worker later. That keeps the early version free/open-source while avoiding a throwaway architecture.
-
-## Run locally
-
-```bash
-npm install
-npx playwright install chromium
-npm start
-```
-
-Then use `http://localhost:4173`.
-
-For the production pipeline:
-
-```bash
 npm run demo -- https://your-product.com 4 "What this product does"
-npm run edit-plan
-# optional
-PIPER_MODEL=/path/to/voice.onnx npm run voice
 npm run render
 npm run qa
 ```
 
 Outputs live under `output/`.
 
-demo. is personal and local. No accounts, billing, tenants, or SaaS layer.
+## Personal worker
+
+demo. is personal-first. Browser automation and rendering can stay on a local worker while the control surface remains deployable.
+
+```
+Web UI → demo. Worker → Playwright/Chromium → FFmpeg → video
+```
+
+Commercial infrastructure can be added later without replacing the Director or production pipeline.
+
+## Principle
+
+`build → demo → post → repeat`
+
+No accounts, billing, tenants, or SaaS layer are required for the personal workflow.
