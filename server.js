@@ -90,7 +90,7 @@ function readBody(req) {
     req.on("data", chunk => {
       body += chunk.toString();
 
-      if (req.url && req.url.startsWith("/api/produce/status")) {\n        return handleProductionStatus(req, res);\n      }\n\n      if (body.length > 2 * 1024 * 1024) {
+      if (body.length > 2 * 1024 * 1024) {
         reject(
           new Error(
             "Request body is too large."
@@ -480,7 +480,7 @@ async function handleRecord(
    PRODUCE ENDPOINT
 ========================================================= */
 
-async function handleProduce(req,res){
+async async function handleProduce(req,res){
   if(!requireAuth(req,res))return;
   try{
     const data=await readBody(req);
