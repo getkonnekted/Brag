@@ -670,6 +670,14 @@ async function handleProduce(
           ? qa.checks.filter(check => check.status === "fail")
           : [];
 
+        const errorLines = stderr
+          .split("\n")
+          .map(line => line.trim())
+          .filter(Boolean)
+          .filter(line =>
+            /(?:Error:|TimeoutError|TargetClosedError|Navigation failed|page\\.|browser|chromium|playwright)/i.test(line)
+          );
+
         const runtimeError =
           syntaxMatch?.[0] ||
           (qaFailures.length
@@ -678,6 +686,7 @@ async function handleProduce(
                 .filter(Boolean)
                 .join(" | ")
             : null) ||
+          errorLines.slice(-6).join("\n") ||
           stderr.trim().split("\n").filter(Boolean).slice(-12).join("\n") ||
           stdout.trim().split("\n").filter(Boolean).slice(-12).join("\n") ||
           "Demo production process exited with an error.";
