@@ -45,6 +45,24 @@ console.log("demo. → Hyperframes");
 console.log("Composition:", compositionDir);
 console.log("Output:", outputFile);
 
+// Railway builds the image without downloading the Hyperframes browser.
+// Ensure the browser exists at runtime, when the container is actually running.
+console.log("\n$ npx hyperframes browser ensure");
+const browserEnsure = spawnSync(
+  process.platform === "win32" ? "npx.cmd" : "npx",
+  ["hyperframes", "browser", "ensure"],
+  {
+    cwd: compositionDir,
+    env: process.env,
+    stdio: "inherit"
+  }
+);
+
+if (browserEnsure.status !== 0) {
+  console.error("Hyperframes browser setup failed.");
+  process.exit(browserEnsure.status || 1);
+}
+
 run(["check", "--no-browser-gpu"]);
 run(["render", "--output", outputFile, "--no-browser-gpu"]);
 
