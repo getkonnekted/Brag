@@ -45,8 +45,8 @@ console.log("demo. → Hyperframes");
 console.log("Composition:", compositionDir);
 console.log("Output:", outputFile);
 
-run(["check"]);
-run(["render", "--output", outputFile]);
+run(["check", "--no-browser-gpu"]);
+run(["render", "--output", outputFile, "--no-browser-gpu"]);
 
 console.log("\nHyperframes render complete.");
 console.log(outputFile);
