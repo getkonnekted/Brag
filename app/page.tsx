@@ -28,9 +28,22 @@ export default function Home() {
   }, [url]);
   const busy = stage === "inspecting" || stage === "producing";
 
+  function normalizeUrl(value: string) {
+    const input = value.trim().replace(/^https?:\/\//i, "");
+    return input ? `https://${input}` : "";
+  }
+
+
   async function makeDemo() {
     setError("");
     setVideoUrls({ "16x9": "", "9x16": "" });
+    const normalizedUrl = normalizeUrl(url);
+    if (!normalizedUrl) {
+      setError("Enter a product URL.");
+      setStage("error");
+      return;
+    }
+    setUrl(normalizedUrl);
     setStage("inspecting");
 
     try {
@@ -40,7 +53,7 @@ export default function Home() {
       const inspectResponse = await fetch(ENGINE + "/api/inspect", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(engineToken ? { Authorization: `Bearer ${engineToken}` } : {}) },
-        body: JSON.stringify({ url })
+        body: JSON.stringify({ url: normalizedUrl })
       });
       const inspectData = await inspectResponse.json().catch(() => ({}));
       if (!inspectResponse.ok) throw new Error(inspectData.error || "Could not inspect the product.");
@@ -99,7 +112,7 @@ export default function Home() {
         <div className="create-card" id="create">
           <div className="create-top"><div><span className="step">01</span><strong>Paste your product</strong></div><span className="hint">No account required</span></div>
           <div className="url-row">
-            <div className="url-input"><span>https://</span><input value={url.replace(/^https?:\/\//, "")} onChange={e => setUrl(e.target.value ? `https://${e.target.value}` : "")} placeholder="yourproduct.com" /></div>
+            <div className="url-input"><span>https://</span><input value={url.replace(/^https?:\/\//i, "")} onChange={e => setUrl(normalizeUrl(e.target.value))} placeholder="yourproduct.com" /></div>
             <button className="make-button" disabled={!url || busy} onClick={makeDemo}>
               {stage === "inspecting" ? "Understanding..." : stage === "producing" ? "Directing & rendering..." : "Make my demo"}<span>→</span>
             </button>
