@@ -113,8 +113,10 @@ function main() {
     const [file, filter] = deliveryTargets[format];
     execFileSync("ffmpeg", [
       "-y", "-i", output, "-vf", filter,
+      "-map", "0:v:0", "-map", "0:a:0?",
       "-c:v", "libx264", "-preset", "ultrafast", "-crf", "24",
-      "-threads", "1", "-an", "-movflags", "+faststart", file
+      "-c:a", "aac", "-b:a", "96k", "-ar", "48000",
+      "-threads", "1", "-movflags", "+faststart", file
     ], { stdio: "inherit" });
   }
 
