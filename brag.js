@@ -96,6 +96,43 @@ function main() {
     throw new Error("BRAG did not produce brag.mp4.");
   }
 
+  const final16x9 = "output/final/product-demo-16x9.mp4";
+  const final9x16 = "output/final/product-demo-9x16.mp4";
+
+  console.log("\nCreating delivery formats…");
+
+  execFileSync("ffmpeg", [
+    "-y",
+    "-i", output,
+    "-vf", "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2",
+    "-c:v", "libx264",
+    "-preset", "veryfast",
+    "-crf", "20",
+    "-c:a", "aac",
+    "-movflags", "+faststart",
+    final16x9
+  ], { stdio: "inherit" });
+
+  execFileSync("ffmpeg", [
+    "-y",
+    "-i", output,
+    "-vf", "crop=ih*9/16:ih,scale=1080:1920",
+    "-c:v", "libx264",
+    "-preset", "veryfast",
+    "-crf", "20",
+    "-c:a", "aac",
+    "-movflags", "+faststart",
+    final9x16
+  ], { stdio: "inherit" });
+
+  if (!fs.existsSync(final16x9) || fs.statSync(final16x9).size === 0) {
+    throw new Error("BRAG did not produce the 16:9 delivery video.");
+  }
+
+  if (!fs.existsSync(final9x16) || fs.statSync(final9x16).size === 0) {
+    throw new Error("BRAG did not produce the 9:16 delivery video.");
+  }
+
   fs.writeFileSync(
     "output/final/production.json",
     JSON.stringify({
