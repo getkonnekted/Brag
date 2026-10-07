@@ -15,7 +15,7 @@
     "qa": "node qa.js",
     "director": "node director.js",
     "brag": "node brag.js",
-    "check": "node brag.js --check",
+    "check": "node brag.js --check && node director.test.js",
     "dev": "next dev",
     "build": "next build",
     "engine": "node server.js",
@@ -26,7 +26,8 @@
     "director-manifest": "node director.js output/project.json",
     "hyperframes:render": "node hyperframes-render.js",
     "hyperframes:doctor": "npx hyperframes doctor",
-    "hyperframes:check": "npx hyperframes check"
+    "hyperframes:check": "npx hyperframes check",
+    "director:test": "node director.test.js"
   },
   "dependencies": {
     "playwright": "^1.55.0",
