@@ -44,7 +44,9 @@ function durationSeconds(file) {
   return Math.min(Math.max(value, 1), 25);
 }
 
-const duration = durationSeconds(footagePath);
+const sourceDuration = durationSeconds(footagePath);
+// /brag targets 15–25s. Keep the engine comfortably inside that contract so Hyperframes does not spend resources on unnecessary browser frames.
+const duration = Math.min(sourceDuration, 20);
 const compositionRoot = path.join(root, "hyperframes-composition");
 const compositionDir = path.join(compositionRoot, "composition");
 const assetsDir = path.join(compositionDir, "assets");
@@ -70,14 +72,17 @@ const transcode = spawnSync(
     "-hide_banner",
     "-loglevel", "error",
     "-i", footagePath,
+    "-t", String(duration),
+    "-vf", "scale=960:600:flags=lanczos,fps=24",
     "-an",
     "-c:v", "libx264",
     "-preset", "veryfast",
     "-pix_fmt", "yuv420p",
-    "-r", "30",
-    "-g", "30",
-    "-keyint_min", "30",
+    "-r", "24",
+    "-g", "24",
+    "-keyint_min", "24",
     "-sc_threshold", "0",
+    "-crf", "30",
     "-movflags", "+faststart",
     normalizedFootagePath
   ],
@@ -149,6 +154,7 @@ fs.writeFileSync(path.join(compositionRoot, "brag-plan.md"),
   "# DEMO. Plan\n\nProduct: " + name +
   "\nPromise: " + promise +
   "\nArchetype: " + (director.archetype || "product") +
+  "\nSource duration: " + sourceDuration.toFixed(2) + "s" +
   "\nDuration: " + duration.toFixed(2) + "s" +
   "\n\nReal workflow evidence:\n" +
   states.slice(0, 5).map((s, i) =>
@@ -161,6 +167,7 @@ fs.writeFileSync(path.join(compositionRoot, "composition-brief.md"),
   "Visual source: real Playwright browser footage.\n" +
   "Creative rule: product evidence first; no invented interface.\n" +
   "Workflow: " + workflow.join(" -> ") +
-  "\nDuration: " + duration.toFixed(2) + " seconds.", "utf8");
+  "\nSource duration: " + sourceDuration.toFixed(2) + " seconds.\n" +
+  "Duration: " + duration.toFixed(2) + " seconds.", "utf8");
 
 console.log(JSON.stringify({ ok: true, composition: compositionDir, states: states.length, duration, footage: footagePath }, null, 2));
