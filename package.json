@@ -27,7 +27,7 @@
     "hyperframes:render": "node hyperframes-render.js",
     "hyperframes:doctor": "npx hyperframes doctor",
     "hyperframes:check": "npx hyperframes check",
-    "director:test": "node director.test.js"
+    "director:test": "node director.test.js && node --check production-gate.js"
   },
   "dependencies": {
     "playwright": "^1.55.0",
