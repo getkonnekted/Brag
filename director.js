@@ -78,18 +78,24 @@ function buildIntelligence(inspection = {}) {
     .sort((a, b) => b.score - a.score);
 
   const strongestAction =
-    rankedActions.find(item => actionPattern.test(item.text))?.text ||
     rankedActions[0]?.text ||
     actions[0] ||
     null;
 
+  const evidenceAction = strongestAction || "the primary action";
+  const outcomeTerms = unique([
+    ...proofTerms,
+    ...evidenceTerms(headings.join(" ")),
+    ...evidenceTerms(buttons.join(" "))
+  ]).slice(0, 12);
+
   const workflow = {
-    "ai-workflow": ["Give the system an input", "Let the system process it", "Reveal the generated result"],
-    "data-workflow": ["Open the useful data view", "Focus on the key signal", "Show the resulting insight"],
-    commerce: ["Find the product or offer", "Show the decision point", "Reveal the conversion path"],
-    "creation-workflow": ["Start the creation task", "Show the key creation step", "Reveal the finished output"],
-    collaboration: ["Enter the shared workspace", "Show the collaborative action", "Reveal the shared outcome"],
-    product: ["Open the primary experience", "Show the core user action", "Reveal the useful outcome"]
+    "ai-workflow": ["Use " + evidenceAction, "Wait for the system to process the real input", "Hold on the generated result"],
+    "data-workflow": ["Open " + evidenceAction, "Focus on the strongest visible signal", "Hold on the resulting insight"],
+    commerce: ["Explore through " + evidenceAction, "Show the decision point without purchasing", "Hold on the clearest product or offer"],
+    "creation-workflow": ["Start with " + evidenceAction, "Show the key creation step", "Hold on the finished output"],
+    collaboration: ["Enter through " + evidenceAction, "Show the real collaborative action", "Hold on the shared outcome"],
+    product: ["Start with " + evidenceAction, "Show the core user action", "Hold on the useful outcome"]
   }[archetype];
   const rawPromise = clean(inspection.description || inspection.product?.description) ||
     clean(headings[0]) ||
@@ -112,6 +118,7 @@ function buildIntelligence(inspection = {}) {
     workflow,
     proof: workflow[2],
     proofTerms: proofTerms.slice(0, 18),
+    outcomeTerms,
     blockedPattern: blocked,
     rankedActions: rankedActions.slice(0, 10),
     signals,
