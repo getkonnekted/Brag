@@ -4,6 +4,11 @@ const { execFileSync, spawnSync } = require("child_process");
 
 const url = process.argv.find(arg => /^https?:\/\//i.test(arg)) || null;
 const checkOnly = process.argv.includes("--check");
+const requestedFormats = String(process.env.DEMO_OUTPUT_FORMATS || "16x9,1x1,9x16")
+  .split(",").map(value => value.trim()).filter(Boolean);
+const allowedFormats = new Set(["16x9", "1x1", "9x16"]);
+const formats = requestedFormats.filter(format => allowedFormats.has(format));
+if (!formats.length) formats.push("16x9", "1x1", "9x16");
 
 function progress(stage, percent, message) {
   console.log(`DEMO_PROGRESS ${JSON.stringify({ stage, percent, message, at: new Date().toISOString() })}`);
@@ -98,31 +103,22 @@ function main() {
 
   console.log("\nCreating delivery formats…");
 
-  execFileSync("ffmpeg", [
-    "-y",
-    "-i", output,
-    "-vf", "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2",
-    "-c:v", "libx264",
-    "-preset", "veryfast",
-    "-crf", "20",
-    "-c:a", "aac",
-    "-movflags", "+faststart",
-    final16x9
-  ], { stdio: "inherit" });
+  const deliveryTargets = {
+    "16x9": [final16x9, "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2"],
+    "1x1": ["output/final/product-demo-1x1.mp4", "scale=1080:1080:force_original_aspect_ratio=decrease,pad=1080:1080:(ow-iw)/2:(oh-ih)/2"],
+    "9x16": [final9x16, "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2"]
+  };
+  for (const format of formats) {
+    const [file, filter] = deliveryTargets[format];
+    execFileSync("ffmpeg", [
+      "-y", "-i", output, "-vf", filter,
+      "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+      "-c:a", "aac", "-movflags", "+faststart", file
+    ], { stdio: "inherit" });
+  }
 
-  execFileSync("ffmpeg", [
-    "-y",
-    "-i", output,
-    "-vf", "scale=-2:1920,crop=1080:1920",
-    "-c:v", "libx264",
-    "-preset", "veryfast",
-    "-crf", "20",
-    "-c:a", "aac",
-    "-movflags", "+faststart",
-    final9x16
-  ], { stdio: "inherit" });
-
-  const artifactInfo = [output, final16x9, final9x16].map(file => ({ file, exists: fs.existsSync(file), bytes: fs.existsSync(file) ? fs.statSync(file).size : 0 }));
+  const artifactFiles = [output, ...formats.map(format => deliveryTargets[format][0])];
+  const artifactInfo = artifactFiles.map(file => ({ file, exists: fs.existsSync(file), bytes: fs.existsSync(file) ? fs.statSync(file).size : 0 }));
   const mediaInfo = artifactInfo.map(item => {
     if (!item.exists || item.bytes === 0) throw new Error("Delivery artifact is missing or empty: " + item.file);
     return item;
@@ -133,12 +129,11 @@ function main() {
   console.log("\nDelivery artifacts:");
   console.log(JSON.stringify(artifactInfo, null, 2));
 
-  if (!fs.existsSync(final16x9) || fs.statSync(final16x9).size === 0) {
-    throw new Error("BRAG did not produce the 16:9 delivery video.");
-  }
-
-  if (!fs.existsSync(final9x16) || fs.statSync(final9x16).size === 0) {
-    throw new Error("BRAG did not produce the 9:16 delivery video.");
+  for (const format of formats) {
+    const file = deliveryTargets[format][0];
+    if (!fs.existsSync(file) || fs.statSync(file).size === 0) {
+      throw new Error("Demo did not produce the " + format + " delivery video.");
+    }
   }
 
   fs.writeFileSync(
@@ -149,7 +144,8 @@ function main() {
       output,
       visualSource: "real-browser-recording",
       renderer: "hyperframes",
-      description: description || null
+      description: description || null,
+      formats
     }, null, 2)
   );
 
