@@ -348,7 +348,7 @@ const common = [
       labelFile
     )}':x=48:y=42:fontsize=26:fontcolor=white@0.94:box=1:boxcolor=black@0.42:boxborderw=12`,
 
-```
+
 `drawtext=font='DejaVu Sans':textfile='${esc(
   captionFile
 )}':x=48:y=h-120:fontsize=28:fontcolor=white:box=1:boxcolor=black@0.58:boxborderw=18:line_spacing=8`,
@@ -357,7 +357,7 @@ const common = [
   scene.interaction,
   size
 )
-```
+
 
 ];
 
@@ -380,7 +380,7 @@ scene.videoStart
 ) || 0
 );
 
-```
+
 const end =
   Number(
     scene.videoEnd
@@ -412,7 +412,7 @@ filters = [
 
   ...common
 ];
-```
+
 
 } else {
 /*
@@ -421,12 +421,12 @@ filters = [
 filters = [
 `scale=${size.width}:${size.height}:force_original_aspect_ratio=increase`,
 
-```
+
   `crop=${size.width}:${size.height}`,
 
   ...common
 ];
-```
+
 
 }
 
@@ -470,7 +470,7 @@ args.push(
 "-i",
 input,
 
-```
+
 "-t",
 String(duration),
 
@@ -488,7 +488,7 @@ String(FPS),
 "yuv420p",
 
 output
-```
+
 
 );
 
@@ -566,7 +566,7 @@ if (
 return null;
 }
 
-```
+
       const file =
         path.join(
           audioDir,
@@ -592,7 +592,7 @@ return null;
     }
   )
   .filter(Boolean);
-```
+
 
 if (
 !audioFiles.length
@@ -610,7 +610,7 @@ inputs.push(
 item.file
 );
 
-```
+
   /*
    * Normalize each narration segment
    * gently before concatenation.
@@ -625,7 +625,7 @@ item.file
     )},asetpts=N/SR/TB,volume=0.82,alimiter=limit=0.95[a${index}]`
   );
 }
-```
+
 
 );
 
@@ -661,7 +661,7 @@ execFileSync(
 [
 "-y",
 
-```
+
   ...inputs,
 
   "-filter_complex",
@@ -685,7 +685,7 @@ execFileSync(
   stdio:
     "inherit"
 }
-```
+
 
 );
 
@@ -733,7 +733,7 @@ i++
 const next =
 `[${i}:v]`;
 
-```
+
 const output =
   `[v${i}]`;
 
@@ -756,7 +756,7 @@ current =
 elapsed +=
   clips[i].duration -
   TRANSITION;
-```
+
 
 }
 
@@ -769,9 +769,9 @@ outDir,
 const args = [
 "-y",
 
-```
+
 ...inputs
-```
+
 
 ];
 
@@ -786,10 +786,10 @@ args.push(
 "-filter_complex",
 filters.join(";"),
 
-```
+
 "-map",
 current
-```
+
 
 );
 
@@ -804,12 +804,12 @@ args.push(
 "-r",
 String(FPS),
 
-```
+
 "-s",
 `${size.width}x${size.height}`,
 
 ...ENCODE_ARGS
-```
+
 
 );
 
@@ -818,7 +818,7 @@ args.push(
 "-c:a",
 "aac",
 
-```
+
   "-b:a",
   "160k",
 
@@ -828,7 +828,7 @@ args.push(
    */
   "-shortest"
 );
-```
+
 
 } else {
 args.push(
@@ -840,12 +840,12 @@ args.push(
 "-pix_fmt",
 "yuv420p",
 
-```
+
 "-movflags",
 "+faststart",
 
 finalPath
-```
+
 
 );
 
