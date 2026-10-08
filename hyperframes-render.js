@@ -84,7 +84,9 @@ function safeFallback() {
     "format=yuv420p"
   ].join(",");
 
-  // Loop the real browser capture so short recordings still produce the\n  // required 20-second master instead of silently ending early.\n  const args = ["-y", "-hide_banner", "-loglevel", "warning", "-stream_loop", "-1", "-i", source];
+  // Loop the real browser capture so short recordings still produce the
+  // required 20-second master instead of silently ending early.
+  const args = ["-y", "-hide_banner", "-loglevel", "warning", "-stream_loop", "-1", "-i", source];
 
   if (hasNarration) {
     args.push("-i", audioFile);
