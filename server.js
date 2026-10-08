@@ -1109,3 +1109,5 @@ server.listen(
     );
   }
 );
+
+// Production pipeline: capture first, story second, render last.
