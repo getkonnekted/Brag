@@ -486,7 +486,7 @@ async function handleProduce(req,res){
   try{
     const data=await readBody(req);
     if(!validUrl(data.url))return sendJson(res,400,{ok:false,error:"A valid http(s) URL is required."});
-    const formats=Array.isArray(data.formats)?data.formats.filter(format=>["16x9","1x1","9x16"].includes(format)):["16x9","1x1","9x16"];
+    const formats=["16x9","1x1","9x16"]; // Always produce the complete delivery set; the UI can choose what to present.
     const args=["brag.js",data.url,String(data.maxSteps||4)];if(data.description)args.push(String(data.description));
     const job=createProductionJob();job.formats=formats;console.log("[BRAG] PRODUCE START:",data.url,job.id,formats);
     for(const target of ["brag.js","capture.js","director.js","runner.js","hyperframes-compose.js","hyperframes-render.js"]){const check=spawnSync(process.execPath,["--check",target],{cwd:ROOT,env:process.env,encoding:"utf8"});if(check.status!==0){const log=(check.stderr||check.stdout||`Node syntax check failed for ${target}.`).trim();updateProductionJob(job,{status:"error",stage:"preflight",progress:0,message:"Engine code check failed.",error:`Engine code check failed in ${target}.`,log});return sendJson(res,500,{ok:false,jobId:job.id,status:job.status,stage:job.stage,progress:job.progress,message:job.message,error:job.error});}}
