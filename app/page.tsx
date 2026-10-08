@@ -120,6 +120,7 @@ export default function Home() {
       for(const file of returnedFiles){
         if(typeof file !== "string") continue;
         if(file.includes("product-demo-16x9.mp4"))nextVideos["16x9"]=`${ENGINE}/api/media?file=${encodeURIComponent(file)}${engineToken?`&token=${encodeURIComponent(engineToken)}`:""}`;
+        if(file.includes("product-demo-1x1.mp4"))nextVideos["1x1"]=`${ENGINE}/api/media?file=${encodeURIComponent(file)}${engineToken?`&token=${encodeURIComponent(engineToken)}`:""}`;
         if(file.includes("product-demo-9x16.mp4"))nextVideos["9x16"]=`${ENGINE}/api/media?file=${encodeURIComponent(file)}${engineToken?`&token=${encodeURIComponent(engineToken)}`:""}`;
       }
       // The engine writes these two delivery artifacts to stable paths. If an
@@ -137,7 +138,7 @@ export default function Home() {
       // Artifact paths returned by the engine are authoritative. Do not use
       // browser-side HEAD requests as the success test for video delivery.
       setVideoUrls(nextVideos);
-      if (!nextVideos["16x9"] && !nextVideos["9x16"]) {
+      if (!nextVideos["16x9"] && !nextVideos["1x1"] && !nextVideos["9x16"]) {
         throw new Error("The engine finished, but no delivery video was reported. Check the Railway production log for the artifact handoff.");
       }
 
@@ -223,7 +224,7 @@ export default function Home() {
         </div>
       </section>
 
-      {stage === "ready" && (videoUrls["16x9"] || videoUrls["9x16"]) && (
+      {stage === "ready" && (videoUrls["16x9"] || videoUrls["1x1"] || videoUrls["9x16"]) && (
         <section className="showcase result-section" id="result">
           <div className="showcase-intro">
             <span className="section-tag">04 / YOUR DEMO</span>
