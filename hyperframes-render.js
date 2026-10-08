@@ -48,15 +48,64 @@ function safeFallback() {
 
   const title = get("title");
   const promise = get("promise");
-  const narration = [title, promise].filter(Boolean).join(". ");
+
+  // Build one short, non-repeating voiceover from the director's
+  // observed workflow instead of reading the same product promise twice.
+  let narration = "";
+  const directorManifest = path.resolve(
+    process.cwd(),
+    "..",
+    "..",
+    "director-manifest.json"
+  );
+  const localDirectorManifest = path.resolve(
+    compositionDir,
+    "..",
+    "..",
+    "director-manifest.json"
+  );
+
+  try {
+    const manifestPath = fs.existsSync(localDirectorManifest)
+      ? localDirectorManifest
+      : directorManifest;
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+    const product = manifest.product?.name || title;
+    const promiseText = manifest.product?.promise || promise;
+    const shots = Array.isArray(manifest.storyboard) ? manifest.storyboard : [];
+    const workflow = shots
+      .filter(scene => ["workflow", "proof"].includes(scene.purpose))
+      .map(scene => scene.text)
+      .filter(Boolean)
+      .slice(0, 2);
+
+    const parts = [
+      product ? product + "." : "",
+      promiseText ? promiseText + "." : "",
+      workflow[0] ? workflow[0] + "." : "",
+      workflow[1] ? workflow[1] + "." : ""
+    ].filter(Boolean);
+
+    narration = parts.join(" ");
+  } catch {
+    narration = [title, promise].filter(Boolean).join(". ");
+  }
+
+  // Keep narration compact enough to fit once inside the 20-second master.
+  narration = narration
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(/(?<=[.!?])\s+/)
+    .slice(0, 4)
+    .join(" ");
 
   if (narration && commandAvailable("espeak-ng")) {
     try {
       require("child_process").execFileSync("espeak-ng", [
-        "-v", process.env.ESPEAK_VOICE || "en-us",
-        "-s", process.env.ESPEAK_SPEED || "150",
-        "-p", process.env.ESPEAK_PITCH || "48",
-        "-a", process.env.ESPEAK_AMPLITUDE || "82",
+        "-v", process.env.ESPEAK_VOICE || "en-us+f3",
+        "-s", process.env.ESPEAK_SPEED || "142",
+        "-p", process.env.ESPEAK_PITCH || "46",
+        "-a", process.env.ESPEAK_AMPLITUDE || "88",
         "-w", audioFile,
         narration
       ], { stdio: "inherit" });
@@ -77,10 +126,9 @@ function safeFallback() {
    * temporal rather than a static transform.
    */
   const videoFilter = [
-    "scale=2304:1296:force_original_aspect_ratio=increase:flags=lanczos",
-    "crop=w=1920:h=1080:x='192+72*sin(t*0.34)':y='108+38*cos(t*0.27)'",
-    "eq=contrast=1.03:saturation=1.04:brightness=-0.015",
-    "vignette=PI/6",
+    "scale=2560:1440:force_original_aspect_ratio=increase:flags=lanczos",
+    "crop=w=1920:h=1080:x='320+280*sin(t*0.30)+70*sin(t*0.67)':y='180+150*cos(t*0.24)+38*sin(t*0.53)'",
+    "eq=contrast=1.01:saturation=1.01:brightness=-0.005",
     "format=yuv420p"
   ].join(",");
 
