@@ -593,7 +593,7 @@ options = {}
 ) {
 const maxSteps = Math.min(
 Math.max(
-Number(options.maxSteps) || 4,
+Number(options.maxSteps) || 5,
 1
 ),
 6
@@ -935,7 +935,7 @@ for (
       }
 
       await page.waitForTimeout(
-        700
+        1800
       );
 
       continue;
@@ -1170,11 +1170,20 @@ for (
     });
 
     /*
-     * For normal DOM workflows,
-     * a proven result is still a
-     * legitimate stopping point.
+     * Do not stop at the first proof.
+     * A 20-second demo needs temporal
+     * progression, not one screenshot
+     * followed by a renderer loop.
+     *
+     * Continue looking for another
+     * director-approved action. If none
+     * exists, the workflow naturally
+     * ends at the strongest captured
+     * state.
      */
-    break;
+    await page.waitForTimeout(
+      1800
+    );
   }
 }
 
