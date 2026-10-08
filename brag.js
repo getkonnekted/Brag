@@ -83,6 +83,7 @@ function main() {
   run("REAL PRODUCT INSPECTION", "capture.js", [url], "inspect", 12, "Understanding the real product…");
   run("BRAG DIRECTOR EVIDENCE", "director.js", [], "direct", 28, "Choosing the strongest workflow…");
   run("REAL PRODUCT WORKFLOW", "runner.js", [url, maxSteps], "capture", 42, "Capturing real product interaction…");
+  run("BRAG STORY EDIT", "director.js", [], "direct", 56, "Turning captured evidence into the story…");
   run("BRAG HYPERFRAMES COMPOSITION", "hyperframes-compose.js", [], "compose", 68, "Building the demo composition…");
 
   run("HYPERFRAMES CHECK + RENDER", "hyperframes-render.js", [
