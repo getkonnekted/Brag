@@ -127,7 +127,7 @@ function safeFallback() {
    */
   const videoFilter = [
     "scale=2560:1440:force_original_aspect_ratio=increase:flags=lanczos",
-    "crop=w=1920:h=1080:x='320+280*sin(t*0.30)+70*sin(t*0.67)':y='180+150*cos(t*0.24)+38*sin(t*0.53)'",
+    "crop=w=1920:h=1080:x='320+280*sin(t*0.30)+40*sin(t*0.67)':y='180+130*cos(t*0.24)+35*sin(t*0.53)'",
     "eq=contrast=1.01:saturation=1.01:brightness=-0.005",
     "format=yuv420p"
   ].join(",");
