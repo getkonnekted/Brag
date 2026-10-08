@@ -152,7 +152,7 @@ function buildDirectorManifest(inspection, options = {}) {
     { scene: 4, duration: 4, purpose: "proof", visual: intelligence.workflow[1], text: intelligence.workflow[2], source: "real-product" },
     { scene: 5, duration: 3, purpose: "outro", visual: "Hold on the clearest product outcome.", text: intelligence.promise, source: "real-product" }
   ];
-  return { version: "2.0", product: { name: intelligence.product, whatItDoes: intelligence.promise, audience: "derived from available product evidence", promise: intelligence.promise }, evidence: { visualIdentity: {}, screens: inspection.evidence?.files || [], features: intelligence.evidence.actions, userFlow: intelligence.workflow }, creative: { ...creative, duration }, storyboard };
+  return { version: "2.1", product: { name: intelligence.product, whatItDoes: intelligence.promise, audience: "derived from available product evidence", promise: intelligence.promise }, evidence: { visualIdentity: {}, screens: inspection.evidence?.files || [], features: intelligence.evidence.actions, userFlow: intelligence.workflow }, creative: { ...creative, duration }, storyboard, narrative: null };
 }
 
 function buildStoryboard(inspection) { return buildDirectorManifest(inspection); }
@@ -286,7 +286,7 @@ if (require.main === module) {
     const request = JSON.parse(fs.readFileSync(requestPath, "utf8"));
     inspection.userIntent = request.description || null;
   }
-  const manifest = buildDirectorManifest(inspection);
+  const manifest = buildDirectorManifest(inspection);\n  const recordingPath = "output/recording/manifest.json";\n  if (fs.existsSync(recordingPath)) {\n    try {\n      const recording = JSON.parse(fs.readFileSync(recordingPath, "utf8"));\n      manifest.narrative = buildNarrative(manifest.product ? buildIntelligence(inspection) : {}, recording.steps || []);\n      const scenes = manifest.narrative.scenes || [];\n      if (scenes.length >= 4) {\n        manifest.storyboard = manifest.storyboard.map((scene, index) => ({\n          ...scene,\n          text: scenes[Math.min(index, scenes.length - 1)]?.text || scene.text\n        }));\n      }\n    } catch (error) {\n      console.warn("Narrative edit unavailable:", error.message);\n    }\n  }
   fs.mkdirSync("output", { recursive: true });
   fs.writeFileSync("output/director-manifest.json", JSON.stringify(manifest, null, 2));
   console.log(JSON.stringify(manifest, null, 2));
