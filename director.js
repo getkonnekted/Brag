@@ -286,7 +286,23 @@ if (require.main === module) {
     const request = JSON.parse(fs.readFileSync(requestPath, "utf8"));
     inspection.userIntent = request.description || null;
   }
-  const manifest = buildDirectorManifest(inspection);\n  const recordingPath = "output/recording/manifest.json";\n  if (fs.existsSync(recordingPath)) {\n    try {\n      const recording = JSON.parse(fs.readFileSync(recordingPath, "utf8"));\n      manifest.narrative = buildNarrative(manifest.product ? buildIntelligence(inspection) : {}, recording.steps || []);\n      const scenes = manifest.narrative.scenes || [];\n      if (scenes.length >= 4) {\n        manifest.storyboard = manifest.storyboard.map((scene, index) => ({\n          ...scene,\n          text: scenes[Math.min(index, scenes.length - 1)]?.text || scene.text\n        }));\n      }\n    } catch (error) {\n      console.warn("Narrative edit unavailable:", error.message);\n    }\n  }
+  const manifest = buildDirectorManifest(inspection);
+  const recordingPath = "output/recording/manifest.json";
+  if (fs.existsSync(recordingPath)) {
+    try {
+      const recording = JSON.parse(fs.readFileSync(recordingPath, "utf8"));
+      manifest.narrative = buildNarrative(manifest.product ? buildIntelligence(inspection) : {}, recording.steps || []);
+      const scenes = manifest.narrative.scenes || [];
+      if (scenes.length >= 4) {
+        manifest.storyboard = manifest.storyboard.map((scene, index) => ({
+          ...scene,
+          text: scenes[Math.min(index, scenes.length - 1)]?.text || scene.text
+        }));
+      }
+    } catch (error) {
+      console.warn("Narrative edit unavailable:", error.message);
+    }
+  }
   fs.mkdirSync("output", { recursive: true });
   fs.writeFileSync("output/director-manifest.json", JSON.stringify(manifest, null, 2));
   console.log(JSON.stringify(manifest, null, 2));
