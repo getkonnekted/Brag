@@ -223,15 +223,60 @@ if (check.status !== 0) {
 // designed title/motion layers never reached the delivered MP4.
 fs.rmSync(outputFile, { force: true });
 const rendered = hyperframes(["render", "-o", outputFile]);
-const hasRenderedOutput =
-  rendered.status === 0 &&
-  fs.existsSync(outputFile) &&
-  fs.statSync(outputFile).size > 1000;
 
-if (hasRenderedOutput) {
-  console.log("Hyperframes composition rendered successfully:", outputFile);
+function inspectRenderedOutput(file) {
+  if (!fs.existsSync(file) || fs.statSync(file).size <= 1000) {
+    return { ok: false, reason: "output file is missing or too small" };
+  }
+
+  const probe = spawnSync(
+    process.platform === "win32" ? "ffprobe.exe" : "ffprobe",
+    [
+      "-v", "error",
+      "-show_entries", "format=duration:stream=codec_type,width,height",
+      "-of", "json",
+      file
+    ],
+    { encoding: "utf8" }
+  );
+
+  if (probe.status !== 0) {
+    return { ok: false, reason: "ffprobe could not read the rendered MP4" };
+  }
+
+  try {
+    const metadata = JSON.parse(probe.stdout || "{}");
+    const video = (metadata.streams || []).find(stream => stream.codec_type === "video");
+    const duration = Number(metadata.format && metadata.format.duration);
+    if (!video || video.width !== 1920 || video.height !== 1080) {
+      return {
+        ok: false,
+        reason: "unexpected video dimensions: " + (video ? video.width + "x" + video.height : "no video stream")
+      };
+    }
+    if (!Number.isFinite(duration) || duration < 2) {
+      return { ok: false, reason: "invalid video duration: " + duration };
+    }
+    return { ok: true, width: video.width, height: video.height, duration };
+  } catch {
+    return { ok: false, reason: "could not parse rendered MP4 metadata" };
+  }
+}
+
+const renderedOutput = rendered.status === 0
+  ? inspectRenderedOutput(outputFile)
+  : { ok: false, reason: "HyperFrames exited with status " + rendered.status };
+
+if (renderedOutput.ok) {
+  console.log("HyperFrames composition rendered and verified:", JSON.stringify({
+    file: outputFile,
+    width: renderedOutput.width,
+    height: renderedOutput.height,
+    duration: renderedOutput.duration,
+    bytes: fs.statSync(outputFile).size
+  }));
   process.exit(0);
 }
 
-console.warn("Hyperframes render did not produce a valid MP4; using the real-footage FFmpeg fallback.");
+console.warn("HyperFrames render did not pass output verification (" + renderedOutput.reason + "); using the real-footage FFmpeg fallback.");
 safeFallback();
