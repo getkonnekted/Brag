@@ -222,7 +222,7 @@ if (check.status !== 0) {
 // validated the composition but skipped Hyperframes rendering entirely, so
 // designed title/motion layers never reached the delivered MP4.
 fs.rmSync(outputFile, { force: true });
-const rendered = hyperframes(["render", "--output", outputFile]);
+const rendered = hyperframes(["render", "-o", outputFile]);
 const hasRenderedOutput =
   rendered.status === 0 &&
   fs.existsSync(outputFile) &&
