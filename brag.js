@@ -4,11 +4,14 @@ const { execFileSync, spawnSync } = require("child_process");
 
 const url = process.argv.find(arg => /^https?:\/\//i.test(arg)) || null;
 const checkOnly = process.argv.includes("--check");
-const requestedFormats = String(process.env.DEMO_OUTPUT_FORMATS || "16x9,1x1,9x16")
+const configuredFormats = process.env.DEMO_OUTPUT_FORMATS;
+const requestedFormats = String(configuredFormats === undefined ? "16x9" : configuredFormats)
   .split(",").map(value => value.trim()).filter(Boolean);
 const allowedFormats = new Set(["16x9", "1x1", "9x16"]);
-const formats = requestedFormats.filter(format => allowedFormats.has(format));
-if (!formats.length) formats.push("16x9", "1x1", "9x16");
+const formats = [...new Set(requestedFormats.filter(format => allowedFormats.has(format)))];
+if (!formats.length) {
+  throw new Error("No supported output formats were selected. Choose 16x9, 1x1, or 9x16.");
+}
 
 function progress(stage, percent, message) {
   console.log(`DEMO_PROGRESS ${JSON.stringify({ stage, percent, message, at: new Date().toISOString() })}`);
