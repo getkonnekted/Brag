@@ -20,7 +20,7 @@ function hyperframes(args) {
       },
       stdio: "inherit",
       // Bound the slow software render so the job can reach its fallback.
-      timeout: args[0] === "render" ? 90000 : 30000
+      timeout: args[0] === "render" ? 20000 : 30000
     }
   );
 }
