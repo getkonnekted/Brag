@@ -216,6 +216,23 @@ const check = hyperframes(["check"]);
 if (check.status !== 0) {
   console.warn("Hyperframes composition check failed; continuing with the safe real-footage renderer.");
   console.warn("The Hyperframes validator is non-blocking for production delivery.");
+} else {
+  // Render the actual HTML/GSAP composition first. The previous version
+  // validated this composition but always fell through to FFmpeg, which
+  // meant the designed title/motion layer never reached the delivered MP4.
+  fs.rmSync(outputFile, { force: true });
+  const rendered = hyperframes(["render", "--output", outputFile]);
+  const hasRenderedOutput =
+    rendered.status === 0 &&
+    fs.existsSync(outputFile) &&
+    fs.statSync(outputFile).size > 1000;
+
+  if (hasRenderedOutput) {
+    console.log("Hyperframes composition rendered successfully:", outputFile);
+    process.exit(0);
+  }
+
+  console.warn("Hyperframes render did not produce a valid MP4; using the real-footage FFmpeg fallback.");
 }
 
 safeFallback();
