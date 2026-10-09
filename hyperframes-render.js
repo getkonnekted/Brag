@@ -18,7 +18,9 @@ function hyperframes(args) {
         HYPERFRAMES_BROWSER_PATH: browserPath,
         PRODUCER_HEADLESS_SHELL_PATH: browserPath,
       },
-      stdio: "inherit"
+      stdio: "inherit",
+      // Bound the slow software render so the job can reach its fallback.
+      timeout: args[0] === "render" ? 90000 : 30000
     }
   );
 }
@@ -126,8 +128,8 @@ function safeFallback() {
    * temporal rather than a static transform.
    */
   const videoFilter = [
-    "scale=w='2560+180*sin(t*0.42)':h='1440+101.25*sin(t*0.42)':eval=frame:flags=lanczos",
-    "crop=w=1920:h=1080:x='320+280*sin(t*0.30)+40*sin(t*0.67)':y='180+130*cos(t*0.24)+35*sin(t*0.53)'",
+    "scale=2240:1260:flags=lanczos",
+    "crop=w=1920:h=1080:x='160+100*sin(t*0.30)+20*sin(t*0.67)':y='90+45*cos(t*0.24)+15*sin(t*0.53)'",
     "eq=contrast=1.01:saturation=1.01:brightness=-0.005",
     "format=yuv420p"
   ].join(",");
@@ -150,7 +152,7 @@ function safeFallback() {
     "-t", "20",
     "-threads", "1",
     "-c:v", "libx264",
-    "-preset", "veryfast",
+    "-preset", "ultrafast",
     "-crf", "21",
     "-c:a", "aac",
     "-b:a", "96k",
